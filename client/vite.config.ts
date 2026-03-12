@@ -1,0 +1,13 @@
+import { defineConfig } from "vite";
+
+export default defineConfig({
+  root: ".",
+  publicDir: "public",
+  build: {
+    outDir: "dist",
+    emptyOutDir: true,
+  },
+  server: {
+    allowedHosts: ["e8e8-62-162-179-165.ngrok-free.app"],
+  },
+});
