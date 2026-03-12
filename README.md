@@ -14,15 +14,14 @@ Before running the project, install the following:
 
 Required for running the frontend.
 
-Recommended version:
-Node.js >= 18
+Recommended version:<br>
+**Node.js >= 18**
 
-Check installation:
-node -v
-npm -v
+Check installation:<br>
+**node -v<br>**
+**npm -v**
 
-Download from:
-
+Download from:<br>
 https://nodejs.org
 
 
@@ -31,63 +30,62 @@ https://nodejs.org
 
 Required for running the backend server.
 
-Recommended version:
-Go >= 1.21
+Recommended version:<br>
+**Go >= 1.21**
 
-Check installation:
-go version
+Check installation:<br>
+**go version**
 
-Download from:
-
+Download from:<br>
 https://go.dev
 
 
 
 # Running the Backend (Server)
 
-Navigate to the server directory:
-cd server
+Navigate to the server directory:<br>
+**cd server**
 
-Download dependencies:
-go mod tidy
+Download dependencies:<br>
+**go mod tidy**
 
-Run the server:
-go run main.go
+Run the server:<br>
+**go run main.go**
 
-The server will start at:
+The server will start at:<br>
 http://localhost:8080
 
-Example API endpoint:
+Example API endpoint:<br>
 GET http://localhost:8080/albums
 
 
 
 # Running the Frontend (Client)
 
-Navigate to the client directory:
-cd client
+Navigate to the client directory:<br>
+**cd client**
 
-Install dependencies:
-npm install
+Install dependencies:<br>
+**npm install**
 
-Start development server:
-npm run dev
+Start development server:<br>
+**npm run dev**
 
-The application will run at:
+The application will run at:<br>
 http://localhost:5173
 
 
 
 # Building the Client
 
-To build the production version:
-npm run build
+To build the production version:<br>
+**npm run build**
 
-The compiled output will be in:
-client/dist
+The compiled output will be in:<br>
+**client/dist**
 
-You can preview the production build with:
-npm run preview
+You can preview the production build with:<br>
+**npm run preview**
 
 
 # PWA Features
@@ -100,8 +98,8 @@ The client application includes basic **Progressive Web App support**:
 - Web App Manifest
 
 Files related to PWA:
-manifest.json
-sw.js
+**manifest.json**
+**sw.js**
 
 
 
@@ -123,14 +121,14 @@ sw.js
 
 # Development Workflow
 
-Run backend:
-cd server
-go run main.go
+Run backend:<br>
+**cd server**<br>
+**go run main.go**
 
-Run frontend:
-cd client
-npm install
-npm run dev
+Run frontend:<br>
+**cd client**<br>
+**npm install**<br>
+**npm run dev**<br>
 
-Then open:
+Then open:<br>
 http://localhost:5173
