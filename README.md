@@ -5,20 +5,6 @@ The project consists of a **Go backend API** and a **modern frontend built with 
 
 The client displays a map interface and can be installed as a PWA, while the backend provides API endpoints for data.
 
----
-
-# Project Structure
-
-point-gis
-│
-├── client/ # PWA frontend (Lit + Leaflet + Vite)
-│
-├── server/ # Go backend API (Gin framework)
-│
-├── LICENSE
-└── README.md
-
----
 
 # Requirements
 
@@ -39,7 +25,7 @@ Download from:
 
 https://nodejs.org
 
----
+
 
 ## 2. Go
 
@@ -55,7 +41,7 @@ Download from:
 
 https://go.dev
 
----
+
 
 # Running the Backend (Server)
 
@@ -74,7 +60,7 @@ http://localhost:8080
 Example API endpoint:
 GET http://localhost:8080/albums
 
----
+
 
 # Running the Frontend (Client)
 
@@ -90,7 +76,7 @@ npm run dev
 The application will run at:
 http://localhost:5173
 
----
+
 
 # Building the Client
 
@@ -103,7 +89,6 @@ client/dist
 You can preview the production build with:
 npm run preview
 
----
 
 # PWA Features
 
@@ -118,7 +103,7 @@ Files related to PWA:
 manifest.json
 sw.js
 
----
+
 
 # Technologies Used
 
@@ -134,7 +119,7 @@ sw.js
 - Go
 - Gin Web Framework
 
----
+
 
 # Development Workflow
 
