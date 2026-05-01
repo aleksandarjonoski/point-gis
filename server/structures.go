@@ -20,10 +20,21 @@ var albums = []album{
 type Point struct {
 	ID          int        `json:"id"`
 	UUID        string     `json:"uuid"`
+	Name        string     `json:"name"`
 	Type        string     `json:"type"`
 	Description string     `json:"description"`
 	Latitude    float64    `json:"latitude"`
 	Longitude   float64    `json:"longitude"`
+	ProjectUUID string     `json:"projectUuid"`
 	Created     *time.Time `json:"created"`
 	Updated     *time.Time `json:"updated"`
+}
+
+type Project struct {
+	ID          int    `json:"id"`
+	UUID        string `json:"uuid"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	UserUUID    string `json:"userUuid"`
+	IsPublic    bool   `json:"isPublic"`
 }

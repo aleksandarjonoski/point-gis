@@ -1,7 +1,7 @@
 database:
   host: localhost
-  port:
+  port: 5432
   user: pointgis
-  password:
+  password: 1234
   dbname: pointgis
   sslmode: disable

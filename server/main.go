@@ -6,5 +6,7 @@ func main() {
 
 	RunMigrations("data/sql/init.sql", "data/sql/alterations.sql")
 
+	SeedSampleData()
+
 	runHttp()
 }
