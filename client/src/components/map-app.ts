@@ -154,10 +154,10 @@ export class MapApp extends LitElement {
   private async selectProject(project: Project) {
     this.currentProject = project;
     this.pickerOpen = false;
-    await this.refreshPoints();
+    await this.refreshPoints({ fitBounds: true });
   }
 
-  private async refreshPoints() {
+  private async refreshPoints(options: { fitBounds?: boolean } = {}) {
     if (!this.currentProject) return;
     try {
       const points = await fetchPoints(this.currentProject.uuid);
@@ -165,7 +165,7 @@ export class MapApp extends LitElement {
       const mapEl = this.shadowRoot?.querySelector(
         "leaflet-map"
       ) as LeafletMap | null;
-      mapEl?.renderPoints(points);
+      mapEl?.renderPoints(points, options);
     } catch (err) {
       console.error("Failed to load points:", err);
     }
@@ -254,7 +254,8 @@ export class MapApp extends LitElement {
     this.updateComplete.then(() => {
       this.getMap()?.startPositionEdit(
         this.dialogValues!.latitude,
-        this.dialogValues!.longitude
+        this.dialogValues!.longitude,
+        this.editingPoint?.uuid
       );
     });
   }

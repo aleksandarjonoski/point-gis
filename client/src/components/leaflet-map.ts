@@ -7,7 +7,7 @@ import {
   marker,
   layerGroup,
 } from "leaflet";
-import type { Map, LayerGroup, Marker } from "leaflet";
+import type { Map as LMap, LayerGroup, Marker } from "leaflet";
 import type { Point } from "../services/api";
 
 import "leaflet/dist/leaflet.css";
@@ -18,9 +18,11 @@ export class LeafletMap extends LitElement {
     return [css``];
   }
 
-  static map: Map;
+  static map: LMap;
   private pointsLayer: LayerGroup | null = null;
+  private markersByUuid: Map<string, Marker> = new Map();
   private editMarker: Marker | null = null;
+  private hiddenMarker: { uuid: string; marker: Marker } | null = null;
 
   constructor() {
     super();
@@ -80,23 +82,27 @@ export class LeafletMap extends LitElement {
     this.centerToCurrentLocation();
   }
 
-  public renderPoints(points: Point[]) {
+  public renderPoints(points: Point[], options: { fitBounds?: boolean } = {}) {
     if (!LeafletMap.map) return;
+    const { fitBounds = false } = options;
 
     if (this.pointsLayer) {
       LeafletMap.map.removeLayer(this.pointsLayer);
     }
+    this.markersByUuid.clear();
+    this.hiddenMarker = null;
 
     const markers: Marker[] = points.map((p) => {
       const m = marker([p.latitude, p.longitude]);
       m.bindPopup(this.buildPointPopup(p, m));
+      this.markersByUuid.set(p.uuid, m);
       return m;
     });
 
     this.pointsLayer = layerGroup(markers);
     this.pointsLayer.addTo(LeafletMap.map);
 
-    if (markers.length > 0) {
+    if (fitBounds && markers.length > 0) {
       const bounds: [number, number][] = markers.map((m) => {
         const ll = m.getLatLng();
         return [ll.lat, ll.lng];
@@ -152,11 +158,24 @@ export class LeafletMap extends LitElement {
     return container;
   }
 
-  public startPositionEdit(lat: number, lng: number) {
+  public startPositionEdit(
+    lat: number,
+    lng: number,
+    hidePointUuid?: string
+  ) {
     if (!LeafletMap.map) return;
     if (this.editMarker) {
       LeafletMap.map.removeLayer(this.editMarker);
     }
+
+    if (hidePointUuid && this.pointsLayer) {
+      const existing = this.markersByUuid.get(hidePointUuid);
+      if (existing) {
+        this.pointsLayer.removeLayer(existing);
+        this.hiddenMarker = { uuid: hidePointUuid, marker: existing };
+      }
+    }
+
     this.editMarker = marker([lat, lng], { draggable: true });
     this.editMarker.addTo(LeafletMap.map);
     LeafletMap.map.setView([lat, lng], Math.max(LeafletMap.map.getZoom(), 17));
@@ -167,13 +186,19 @@ export class LeafletMap extends LitElement {
     const ll = this.editMarker.getLatLng();
     LeafletMap.map.removeLayer(this.editMarker);
     this.editMarker = null;
+    this.hiddenMarker = null;
     return { latitude: ll.lat, longitude: ll.lng };
   }
 
   public cancelPositionEdit() {
-    if (!this.editMarker) return;
-    LeafletMap.map.removeLayer(this.editMarker);
-    this.editMarker = null;
+    if (this.editMarker) {
+      LeafletMap.map.removeLayer(this.editMarker);
+      this.editMarker = null;
+    }
+    if (this.hiddenMarker && this.pointsLayer) {
+      this.pointsLayer.addLayer(this.hiddenMarker.marker);
+      this.hiddenMarker = null;
+    }
   }
 
   private async centerToCurrentLocation() {
