@@ -30,6 +30,7 @@ export interface Point {
 export interface NewPoint {
   name: string;
   type: PointType;
+  description: string;
   latitude: number;
   longitude: number;
   projectUuid: string;

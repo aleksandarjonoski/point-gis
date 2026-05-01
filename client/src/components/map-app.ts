@@ -14,14 +14,12 @@ import {
   PointType,
   POINT_TYPES,
 } from "../services/api";
-import type {
-  AddPointSubmitDetail,
-  DialogMode,
-} from "./add-point-dialog";
+import type { AddPointSubmitDetail, DialogMode } from "./add-point-dialog";
 
 interface DialogValues {
   name: string;
   type: PointType;
+  description: string;
   latitude: number;
   longitude: number;
 }
@@ -197,6 +195,7 @@ export class MapApp extends LitElement {
       this.dialogValues = {
         name: "",
         type: POINT_TYPES[0],
+        description: "",
         latitude: pos.coords.latitude,
         longitude: pos.coords.longitude,
       };
@@ -238,6 +237,7 @@ export class MapApp extends LitElement {
     this.dialogValues = {
       name: p.name,
       type,
+      description: p.description ?? "",
       latitude: p.latitude,
       longitude: p.longitude,
     };
@@ -249,6 +249,7 @@ export class MapApp extends LitElement {
       ...this.dialogValues,
       name: e.detail.name,
       type: e.detail.type,
+      description: e.detail.description,
     };
     this.positionEditOpen = true;
     this.updateComplete.then(() => {
@@ -285,7 +286,7 @@ export class MapApp extends LitElement {
         await updatePoint(this.editingPoint.uuid, {
           name: detail.name,
           type: detail.type,
-          description: this.editingPoint.description,
+          description: detail.description,
           latitude: detail.latitude,
           longitude: detail.longitude,
         });
@@ -293,13 +294,18 @@ export class MapApp extends LitElement {
         await createPoint({
           name: detail.name,
           type: detail.type,
+          description: detail.description,
           latitude: detail.latitude,
           longitude: detail.longitude,
           projectUuid: this.currentProject.uuid,
         });
       }
+      const wasCreate = this.dialogMode === "create";
       this.closeDialog();
       await this.refreshPoints();
+      if (wasCreate) {
+        this.getMap()?.flyTo(detail.latitude, detail.longitude);
+      }
     } catch (err) {
       console.error("Failed to save point:", err);
       alert("Failed to save point");
@@ -357,6 +363,7 @@ export class MapApp extends LitElement {
               .longitude=${this.dialogValues.longitude}
               .initialName=${this.dialogValues.name}
               .initialType=${this.dialogValues.type}
+              .initialDescription=${this.dialogValues.description}
               @dialog-submit=${this.onDialogSubmit}
               @dialog-cancelled=${this.onDialogCancelled}
               @edit-position=${this.onEditPositionRequested}
@@ -371,9 +378,7 @@ export class MapApp extends LitElement {
                 <button class="cancel" @click=${this.cancelPosition}>
                   Cancel
                 </button>
-                <button class="save" @click=${this.savePosition}>
-                  Save
-                </button>
+                <button class="save" @click=${this.savePosition}>Ok</button>
               </span>
             </div>
           `

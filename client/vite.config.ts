@@ -8,7 +8,7 @@ export default defineConfig({
     emptyOutDir: true,
   },
   server: {
-    allowedHosts: ["e8e8-62-162-179-165.ngrok-free.app"],
+    allowedHosts: ["eac0-62-162-179-165.ngrok-free.app"],
     proxy: {
       "/api": {
         target: "http://localhost:8080",

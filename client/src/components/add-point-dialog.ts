@@ -5,6 +5,7 @@ import { POINT_TYPES, PointType } from "../services/api";
 export interface AddPointSubmitDetail {
   name: string;
   type: PointType;
+  description: string;
   latitude: number;
   longitude: number;
 }
@@ -18,9 +19,11 @@ export class AddPointDialog extends LitElement {
   @property({ type: Number }) longitude = 0;
   @property({ type: String }) initialName = "";
   @property({ type: String }) initialType: PointType = POINT_TYPES[0];
+  @property({ type: String }) initialDescription = "";
 
   @state() private name = "";
   @state() private type: PointType = POINT_TYPES[0];
+  @state() private description = "";
   @state() private saving = false;
 
   static styles = css`
@@ -70,15 +73,22 @@ export class AddPointDialog extends LitElement {
       color: #444;
     }
     input,
-    select {
+    select,
+    textarea {
       font-size: 15px;
       padding: 10px 12px;
       border: 1px solid #ccc;
       border-radius: 6px;
       background: #fff;
+      font-family: inherit;
+    }
+    textarea {
+      resize: vertical;
+      min-height: 60px;
     }
     input:focus,
-    select:focus {
+    select:focus,
+    textarea:focus {
       outline: none;
       border-color: #2563eb;
     }
@@ -142,12 +152,15 @@ export class AddPointDialog extends LitElement {
   protected willUpdate(changed: PropertyValues<this>) {
     if (changed.has("initialName")) this.name = this.initialName;
     if (changed.has("initialType")) this.type = this.initialType;
+    if (changed.has("initialDescription"))
+      this.description = this.initialDescription;
   }
 
   private currentDetail(): AddPointSubmitDetail {
     return {
       name: this.name.trim(),
       type: this.type,
+      description: this.description.trim(),
       latitude: this.latitude,
       longitude: this.longitude,
     };
@@ -212,6 +225,16 @@ export class AddPointDialog extends LitElement {
                 (t) => html`<option value=${t}>${t}</option>`
               )}
             </select>
+          </label>
+          <label>
+            Description
+            <textarea
+              rows="3"
+              .value=${this.description}
+              @input=${(e: InputEvent) =>
+                (this.description = (e.target as HTMLTextAreaElement).value)}
+              placeholder="Optional notes"
+            ></textarea>
           </label>
           <label>
             Coordinates

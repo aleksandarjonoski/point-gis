@@ -1,25 +1,88 @@
 import { LitElement, html, css, PropertyValues } from "lit";
 import { customElement } from "lit/decorators.js";
-import {
-  map as createMap,
-  tileLayer,
-  control,
-  marker,
-  layerGroup,
-} from "leaflet";
-import type { Map as LMap, LayerGroup, Marker } from "leaflet";
+import * as L from "leaflet";
+const { map: createMap, tileLayer, control, marker } = L;
+import type { Map as LMap, MarkerClusterGroup, Marker } from "leaflet";
 import type { Point } from "../services/api";
 
 import "leaflet/dist/leaflet.css";
+import "leaflet.markercluster/dist/MarkerCluster.css";
+import "leaflet.markercluster/dist/MarkerCluster.Default.css";
+import "leaflet.markercluster";
 
 @customElement("leaflet-map")
 export class LeafletMap extends LitElement {
   static get styles() {
-    return [css``];
+    return [
+      css`
+        .cluster-bubble-icon {
+          background: transparent !important;
+          border: none !important;
+        }
+        .cluster-bubble {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 100%;
+          height: 100%;
+          border-radius: 50%;
+          background: rgba(37, 99, 235, 0.92);
+          border: 4px solid rgba(37, 99, 235, 0.35);
+          background-clip: padding-box;
+          color: #fff;
+          font-family: system-ui, -apple-system, sans-serif;
+          font-weight: 700;
+          box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+        }
+        .cluster-bubble.small {
+          font-size: 14px;
+        }
+        .cluster-bubble.medium {
+          font-size: 16px;
+        }
+        .cluster-bubble.large {
+          font-size: 18px;
+        }
+
+        .edit-pin-icon {
+          background: transparent !important;
+          border: none !important;
+        }
+        .edit-pin {
+          width: 38px;
+          height: 52px;
+          filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.4));
+          transform-origin: 50% 100%;
+          animation: editPinPulse 1.4s ease-in-out infinite;
+        }
+        .edit-pin svg {
+          width: 100%;
+          height: 100%;
+          display: block;
+        }
+        .edit-pin svg path {
+          fill: #f59e0b;
+          stroke: #fff;
+          stroke-width: 2;
+        }
+        .edit-pin svg circle {
+          fill: #fff;
+        }
+        @keyframes editPinPulse {
+          0%,
+          100% {
+            transform: scale(1);
+          }
+          50% {
+            transform: scale(1.1);
+          }
+        }
+      `,
+    ];
   }
 
   static map: LMap;
-  private pointsLayer: LayerGroup | null = null;
+  private pointsLayer: MarkerClusterGroup | null = null;
   private markersByUuid: Map<string, Marker> = new Map();
   private editMarker: Marker | null = null;
   private hiddenMarker: { uuid: string; marker: Marker } | null = null;
@@ -82,6 +145,11 @@ export class LeafletMap extends LitElement {
     this.centerToCurrentLocation();
   }
 
+  public flyTo(lat: number, lng: number, zoom = 18) {
+    if (!LeafletMap.map) return;
+    LeafletMap.map.flyTo([lat, lng], zoom, { duration: 0.6 });
+  }
+
   public renderPoints(points: Point[], options: { fitBounds?: boolean } = {}) {
     if (!LeafletMap.map) return;
     const { fitBounds = false } = options;
@@ -99,7 +167,21 @@ export class LeafletMap extends LitElement {
       return m;
     });
 
-    this.pointsLayer = layerGroup(markers);
+    this.pointsLayer = (L as any).markerClusterGroup({
+      iconCreateFunction: (cluster: any) => {
+        const count = cluster.getChildCount();
+        const sizeClass =
+          count < 10 ? "small" : count < 100 ? "medium" : "large";
+        const total = count < 10 ? 48 : count < 100 ? 56 : 64;
+        return L.divIcon({
+          html: `<div class="cluster-bubble ${sizeClass}">${count}</div>`,
+          className: "cluster-bubble-icon",
+          iconSize: [total, total],
+          iconAnchor: [total / 2, total / 2],
+        });
+      },
+    }) as MarkerClusterGroup;
+    this.pointsLayer.addLayers(markers);
     this.pointsLayer.addTo(LeafletMap.map);
 
     if (fitBounds && markers.length > 0) {
@@ -158,11 +240,7 @@ export class LeafletMap extends LitElement {
     return container;
   }
 
-  public startPositionEdit(
-    lat: number,
-    lng: number,
-    hidePointUuid?: string
-  ) {
+  public startPositionEdit(lat: number, lng: number, hidePointUuid?: string) {
     if (!LeafletMap.map) return;
     if (this.editMarker) {
       LeafletMap.map.removeLayer(this.editMarker);
@@ -176,7 +254,20 @@ export class LeafletMap extends LitElement {
       }
     }
 
-    this.editMarker = marker([lat, lng], { draggable: true });
+    const editIcon = L.divIcon({
+      html: `
+        <div class="edit-pin">
+          <svg viewBox="0 0 38 52" xmlns="http://www.w3.org/2000/svg">
+            <path d="M19 0 C8.5 0 0 8.5 0 19 C0 33 19 52 19 52 C19 52 38 33 38 19 C38 8.5 29.5 0 19 0 Z" />
+            <circle cx="19" cy="19" r="6" />
+          </svg>
+        </div>
+      `,
+      className: "edit-pin-icon",
+      iconSize: [38, 52],
+      iconAnchor: [19, 52],
+    });
+    this.editMarker = marker([lat, lng], { draggable: true, icon: editIcon });
     this.editMarker.addTo(LeafletMap.map);
     LeafletMap.map.setView([lat, lng], Math.max(LeafletMap.map.getZoom(), 17));
   }
