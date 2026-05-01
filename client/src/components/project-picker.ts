@@ -44,6 +44,29 @@ export class ProjectPicker extends LitElement {
       margin: 0;
       padding: 0;
       overflow-y: auto;
+      flex: 1;
+    }
+    .empty {
+      flex: 1;
+    }
+    footer {
+      display: flex;
+      justify-content: flex-end;
+      padding: 12px 16px;
+      border-top: 1px solid #e5e5e5;
+      background: #fafafa;
+    }
+    button.add-project {
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 15px;
+      cursor: pointer;
+    }
+    button.add-project:hover {
+      background: #1d4ed8;
     }
     li {
       padding: 14px 16px;
@@ -98,12 +121,18 @@ export class ProjectPicker extends LitElement {
     );
   }
 
+  private addProject() {
+    this.dispatchEvent(
+      new CustomEvent("add-project-requested", {
+        bubbles: true,
+        composed: true,
+      })
+    );
+  }
+
   render() {
     return html`
-      <div
-        class="panel"
-        @click=${(e: Event) => e.stopPropagation()}
-      >
+      <div class="panel" @click=${(e: Event) => e.stopPropagation()}>
         <header>
           <span>Select project</span>
           <button class="close" @click=${this.close}>×</button>
@@ -130,8 +159,12 @@ export class ProjectPicker extends LitElement {
                 )}
               </ul>
             `}
+        <footer>
+          <button class="add-project" @click=${this.addProject}>
+            Add Project
+          </button>
+        </footer>
       </div>
     `;
   }
-
 }

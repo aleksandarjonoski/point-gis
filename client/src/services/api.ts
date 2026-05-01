@@ -47,6 +47,22 @@ export async function fetchProjects(userUuid?: string): Promise<Project[]> {
   return res.json();
 }
 
+export interface NewProject {
+  name: string;
+  description: string;
+  isPublic: boolean;
+}
+
+export async function createProject(body: NewProject): Promise<Project> {
+  const res = await fetch(`${API_BASE}/projects`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`createProject failed: ${res.status}`);
+  return res.json();
+}
+
 export async function fetchPoints(projectUuid: string): Promise<Point[]> {
   const res = await fetch(
     `${API_BASE}/points?projectUuid=${encodeURIComponent(projectUuid)}`

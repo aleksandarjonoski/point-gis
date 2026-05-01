@@ -108,6 +108,46 @@ func getProjects(c *gin.Context) {
 	c.JSON(http.StatusOK, projects)
 }
 
+func createProject(c *gin.Context) {
+	var p Project
+	if err := c.ShouldBindJSON(&p); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if strings.TrimSpace(p.Name) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "name is required"})
+		return
+	}
+
+	userUUID := strings.TrimSpace(p.UserUUID)
+	if userUUID == "" {
+		if err := DB.QueryRow(
+			`SELECT uuid FROM users WHERE user_email = $1`,
+			"sample@example.com",
+		).Scan(&userUUID); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "no default user available"})
+			return
+		}
+	}
+
+	var newUUID string
+	err := DB.QueryRow(
+		`INSERT INTO project (name, description, user_uuid, is_public)
+		 VALUES ($1, $2, $3, $4)
+		 RETURNING uuid`,
+		p.Name, p.Description, userUUID, p.IsPublic,
+	).Scan(&newUUID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	p.UUID = newUUID
+	p.UserUUID = userUUID
+	c.JSON(http.StatusCreated, p)
+}
+
 func getPoints(c *gin.Context) {
 	projectUUID := strings.TrimSpace(c.Query("projectUuid"))
 

@@ -3,18 +3,21 @@ import { customElement, state } from "lit/decorators.js";
 import "./leaflet-map";
 import "./project-picker";
 import "./add-point-dialog";
+import "./add-project-dialog";
 import { LeafletMap } from "./leaflet-map";
 import {
   fetchProjects,
   fetchPoints,
   createPoint,
   updatePoint,
+  createProject,
   Project,
   Point,
   PointType,
   POINT_TYPES,
 } from "../services/api";
 import type { AddPointSubmitDetail, DialogMode } from "./add-point-dialog";
+import type { AddProjectSubmitDetail } from "./add-project-dialog";
 
 interface DialogValues {
   name: string;
@@ -124,6 +127,7 @@ export class MapApp extends LitElement {
   @state() private projects: Project[] = [];
   @state() private currentProject: Project | null = null;
   @state() private pickerOpen = false;
+  @state() private addProjectOpen = false;
   @state() private acquiringGps = false;
 
   @state() private dialogMode: DialogMode | null = null;
@@ -183,6 +187,29 @@ export class MapApp extends LitElement {
 
   private onPickerClosed() {
     this.pickerOpen = false;
+  }
+
+  private onAddProjectRequested() {
+    this.pickerOpen = false;
+    this.addProjectOpen = true;
+  }
+
+  private onAddProjectCancelled() {
+    this.addProjectOpen = false;
+    this.pickerOpen = true;
+  }
+
+  private async onAddProjectSubmit(e: CustomEvent<AddProjectSubmitDetail>) {
+    try {
+      await createProject(e.detail);
+      const projects = await fetchProjects();
+      this.projects = projects;
+      this.addProjectOpen = false;
+      this.pickerOpen = true;
+    } catch (err) {
+      console.error("Failed to create project:", err);
+      alert("Failed to create project");
+    }
   }
 
   private async onAddPointClicked() {
@@ -352,7 +379,16 @@ export class MapApp extends LitElement {
               .selectedUuid=${this.currentProject?.uuid ?? ""}
               @project-selected=${this.onProjectSelected}
               @picker-closed=${this.onPickerClosed}
+              @add-project-requested=${this.onAddProjectRequested}
             ></project-picker>
+          `
+        : ""}
+      ${this.addProjectOpen
+        ? html`
+            <add-project-dialog
+              @dialog-submit=${this.onAddProjectSubmit}
+              @dialog-cancelled=${this.onAddProjectCancelled}
+            ></add-project-dialog>
           `
         : ""}
       ${showDialog && this.dialogValues

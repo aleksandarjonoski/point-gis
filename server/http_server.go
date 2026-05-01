@@ -9,5 +9,6 @@ func runHttp() {
 	router.GET("/points", getPoints)
 	router.PUT("/points/:uuid", updatePoint)
 	router.GET("/projects", getProjects)
+	router.POST("/projects", createProject)
 	router.Run("localhost:8080")
 }
