@@ -51,6 +51,35 @@ func SeedSampleData() {
 		}
 	}
 
+	defaultTypes := []struct {
+		name, description string
+	}{
+		{"deciduous tree", "Tree that sheds its leaves seasonally"},
+		{"evergreen tree", "Tree that keeps its leaves year-round"},
+		{"fruit tree", "Tree cultivated for its edible fruit"},
+	}
+	typeUUIDs := make(map[string]string, len(defaultTypes))
+	for _, t := range defaultTypes {
+		var typeUUID string
+		err := tx.QueryRow(
+			`SELECT uuid FROM point_type WHERE name = $1 AND project_uuid = $2`,
+			t.name, projectUUID,
+		).Scan(&typeUUID)
+		if errors.Is(err, sql.ErrNoRows) {
+			err = tx.QueryRow(
+				`INSERT INTO point_type (name, description, project_uuid)
+				 VALUES ($1, $2, $3) RETURNING uuid`,
+				t.name, t.description, projectUUID,
+			).Scan(&typeUUID)
+			if err != nil {
+				log.Fatalf("Seed: insert point_type %q: %v", t.name, err)
+			}
+		} else if err != nil {
+			log.Fatalf("Seed: lookup point_type %q: %v", t.name, err)
+		}
+		typeUUIDs[t.name] = typeUUID
+	}
+
 	var pointCount int
 	if err := tx.QueryRow(
 		`SELECT COUNT(*) FROM point WHERE project_uuid = $1`, projectUUID,
@@ -60,18 +89,18 @@ func SeedSampleData() {
 
 	if pointCount == 0 {
 		samplePoints := []struct {
-			pType, desc    string
-			lat, lng       float64
+			name, typeName, desc string
+			lat, lng             float64
 		}{
-			{"landmark", "Skopje city center", 41.9981, 21.4254},
-			{"landmark", "Ohrid lakeside", 41.1172, 20.8019},
-			{"landmark", "Bitola clock tower", 41.0314, 21.3347},
+			{"Skopje center", "deciduous tree", "Skopje city center", 41.9981, 21.4254},
+			{"Ohrid lakeside", "evergreen tree", "Ohrid lakeside", 41.1172, 20.8019},
+			{"Bitola tower", "fruit tree", "Bitola clock tower", 41.0314, 21.3347},
 		}
 		for _, p := range samplePoints {
 			if _, err := tx.Exec(
-				`INSERT INTO point (type, description, latitude, longitude, project_uuid)
-				 VALUES ($1, $2, $3, $4, $5)`,
-				p.pType, p.desc, p.lat, p.lng, projectUUID,
+				`INSERT INTO point (name, point_type_uuid, description, latitude, longitude, project_uuid)
+				 VALUES ($1, $2, $3, $4, $5, $6)`,
+				p.name, typeUUIDs[p.typeName], p.desc, p.lat, p.lng, projectUUID,
 			); err != nil {
 				log.Fatalf("Seed: insert point: %v", err)
 			}

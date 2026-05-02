@@ -1,10 +1,10 @@
 import { LitElement, html, css, PropertyValues } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
-import { POINT_TYPES, PointType } from "../services/api";
+import type { PointType } from "../services/api";
 
 export interface AddPointSubmitDetail {
   name: string;
-  type: PointType;
+  type: string;
   description: string;
   latitude: number;
   longitude: number;
@@ -12,17 +12,20 @@ export interface AddPointSubmitDetail {
 
 export type DialogMode = "create" | "edit";
 
+const ADD_TYPE_SENTINEL = "__add_point_type__";
+
 @customElement("add-point-dialog")
 export class AddPointDialog extends LitElement {
   @property({ type: String }) mode: DialogMode = "create";
   @property({ type: Number }) latitude = 0;
   @property({ type: Number }) longitude = 0;
   @property({ type: String }) initialName = "";
-  @property({ type: String }) initialType: PointType = POINT_TYPES[0];
+  @property({ type: String }) initialType = "";
   @property({ type: String }) initialDescription = "";
+  @property({ type: Array }) pointTypes: PointType[] = [];
 
   @state() private name = "";
-  @state() private type: PointType = POINT_TYPES[0];
+  @state() private type = "";
   @state() private description = "";
   @state() private saving = false;
 
@@ -45,7 +48,9 @@ export class AddPointDialog extends LitElement {
       align-items: center;
       justify-content: space-between;
       padding: 12px 16px;
-      border-bottom: 1px solid #e5e5e5;
+      background: #fafafa;
+      border-bottom: 1px solid #d1d5db;
+      color: #1f2937;
       font-weight: 600;
       font-size: 16px;
     }
@@ -80,7 +85,22 @@ export class AddPointDialog extends LitElement {
       border: 1px solid #ccc;
       border-radius: 6px;
       background: #fff;
+      color: #1f2937;
       font-family: inherit;
+    }
+    select {
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+      padding-right: 36px;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8' fill='none' stroke='%231f2937' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'><path d='M1 1.5l5 5 5-5'/></svg>");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      background-size: 12px 8px;
+    }
+    select option {
+      background: #fff;
+      color: #1f2937;
     }
     textarea {
       resize: vertical;
@@ -91,6 +111,7 @@ export class AddPointDialog extends LitElement {
     textarea:focus {
       outline: none;
       border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
     }
     .coords {
       display: grid;
@@ -194,6 +215,23 @@ export class AddPointDialog extends LitElement {
     );
   }
 
+  private onTypeChange(e: Event) {
+    const select = e.target as HTMLSelectElement;
+    const value = select.value;
+    if (value === ADD_TYPE_SENTINEL) {
+      select.value = this.type;
+      this.dispatchEvent(
+        new CustomEvent<AddPointSubmitDetail>("add-point-type-requested", {
+          detail: this.currentDetail(),
+          bubbles: true,
+          composed: true,
+        })
+      );
+      return;
+    }
+    this.type = value;
+  }
+
   render() {
     const title = this.mode === "edit" ? "Edit point" : "Add point";
     return html`
@@ -215,15 +253,12 @@ export class AddPointDialog extends LitElement {
           </label>
           <label>
             Type
-            <select
-              .value=${this.type}
-              @change=${(e: Event) =>
-                (this.type = (e.target as HTMLSelectElement)
-                  .value as PointType)}
-            >
-              ${POINT_TYPES.map(
-                (t) => html`<option value=${t}>${t}</option>`
+            <select .value=${this.type} @change=${this.onTypeChange}>
+              <option value="" disabled hidden>-- Select type --</option>
+              ${this.pointTypes.map(
+                (t) => html`<option value=${t.uuid}>${t.name}</option>`
               )}
+              <option value=${ADD_TYPE_SENTINEL}>+ Add point type</option>
             </select>
           </label>
           <label>

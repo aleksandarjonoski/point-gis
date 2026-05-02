@@ -28,7 +28,7 @@ func createPoints(c *gin.Context) {
 	var b strings.Builder
 	const cols = 6
 	args := make([]interface{}, 0, len(input)*cols)
-	b.WriteString("INSERT INTO point (name, type, description, latitude, longitude, project_uuid) VALUES ")
+	b.WriteString("INSERT INTO point (name, point_type_uuid, description, latitude, longitude, project_uuid) VALUES ")
 
 	for i, p := range input {
 		if i > 0 {
@@ -148,6 +148,77 @@ func createProject(c *gin.Context) {
 	c.JSON(http.StatusCreated, p)
 }
 
+func getPointTypes(c *gin.Context) {
+	projectUUID := strings.TrimSpace(c.Query("projectUuid"))
+	if projectUUID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "projectUuid is required"})
+		return
+	}
+
+	rows, err := DB.Query(
+		`SELECT id, uuid, name, description, project_uuid
+		 FROM point_type
+		 WHERE project_uuid = $1
+		 ORDER BY name`,
+		projectUUID,
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	defer rows.Close()
+
+	types := []PointType{}
+	for rows.Next() {
+		var pt PointType
+		var name, description sql.NullString
+		if err := rows.Scan(&pt.ID, &pt.UUID, &name, &description, &pt.ProjectUUID); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		pt.Name = name.String
+		pt.Description = description.String
+		types = append(types, pt)
+	}
+
+	if err = rows.Err(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, types)
+}
+
+func createPointType(c *gin.Context) {
+	var pt PointType
+	if err := c.ShouldBindJSON(&pt); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if strings.TrimSpace(pt.Name) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "name is required"})
+		return
+	}
+	if strings.TrimSpace(pt.ProjectUUID) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "projectUuid is required"})
+		return
+	}
+
+	var newUUID string
+	err := DB.QueryRow(
+		`INSERT INTO point_type (name, description, project_uuid)
+		 VALUES ($1, $2, $3)
+		 RETURNING uuid`,
+		pt.Name, pt.Description, pt.ProjectUUID,
+	).Scan(&newUUID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	pt.UUID = newUUID
+	c.JSON(http.StatusCreated, pt)
+}
+
 func getPoints(c *gin.Context) {
 	projectUUID := strings.TrimSpace(c.Query("projectUuid"))
 
@@ -157,13 +228,13 @@ func getPoints(c *gin.Context) {
 	)
 	if projectUUID != "" {
 		rows, err = DB.Query(
-			`SELECT id, uuid, name, type, description, latitude, longitude, project_uuid, created, updated
+			`SELECT id, uuid, name, point_type_uuid, description, latitude, longitude, project_uuid, created, updated
 			 FROM point WHERE project_uuid = $1`,
 			projectUUID,
 		)
 	} else {
 		rows, err = DB.Query(
-			`SELECT id, uuid, name, type, description, latitude, longitude, project_uuid, created, updated FROM point`,
+			`SELECT id, uuid, name, point_type_uuid, description, latitude, longitude, project_uuid, created, updated FROM point`,
 		)
 	}
 	if err != nil {
@@ -211,7 +282,7 @@ func updatePoint(c *gin.Context) {
 
 	res, err := DB.Exec(
 		`UPDATE point
-		 SET name = $1, type = $2, description = $3, latitude = $4, longitude = $5, updated = NOW()
+		 SET name = $1, point_type_uuid = $2, description = $3, latitude = $4, longitude = $5, updated = NOW()
 		 WHERE uuid = $6`,
 		p.Name, p.Type, p.Description, p.Latitude, p.Longitude, uuid,
 	)

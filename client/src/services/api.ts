@@ -7,12 +7,13 @@ export interface Project {
   isPublic: boolean;
 }
 
-export const POINT_TYPES = [
-  "deciduous tree",
-  "evergreen tree",
-  "fruit tree",
-] as const;
-export type PointType = (typeof POINT_TYPES)[number];
+export interface PointType {
+  id: number;
+  uuid: string;
+  name: string;
+  description: string;
+  projectUuid: string;
+}
 
 export interface Point {
   id: number;
@@ -29,7 +30,7 @@ export interface Point {
 
 export interface NewPoint {
   name: string;
-  type: PointType;
+  type: string;
   description: string;
   latitude: number;
   longitude: number;
@@ -98,4 +99,30 @@ export async function updatePoint(
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`updatePoint failed: ${res.status}`);
+}
+
+export async function fetchPointTypes(
+  projectUuid: string
+): Promise<PointType[]> {
+  const res = await fetch(
+    `${API_BASE}/point-types?projectUuid=${encodeURIComponent(projectUuid)}`
+  );
+  if (!res.ok) throw new Error(`fetchPointTypes failed: ${res.status}`);
+  return res.json();
+}
+
+export interface NewPointType {
+  name: string;
+  description: string;
+  projectUuid: string;
+}
+
+export async function createPointType(body: NewPointType): Promise<PointType> {
+  const res = await fetch(`${API_BASE}/point-types`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`createPointType failed: ${res.status}`);
+  return res.json();
 }

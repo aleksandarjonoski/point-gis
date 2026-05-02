@@ -4,6 +4,7 @@ import "./leaflet-map";
 import "./project-picker";
 import "./add-point-dialog";
 import "./add-project-dialog";
+import "./add-point-type-dialog";
 import { LeafletMap } from "./leaflet-map";
 import {
   fetchProjects,
@@ -11,17 +12,19 @@ import {
   createPoint,
   updatePoint,
   createProject,
+  fetchPointTypes,
+  createPointType,
   Project,
   Point,
   PointType,
-  POINT_TYPES,
 } from "../services/api";
 import type { AddPointSubmitDetail, DialogMode } from "./add-point-dialog";
 import type { AddProjectSubmitDetail } from "./add-project-dialog";
+import type { AddPointTypeSubmitDetail } from "./add-point-type-dialog";
 
 interface DialogValues {
   name: string;
-  type: PointType;
+  type: string;
   description: string;
   latitude: number;
   longitude: number;
@@ -40,9 +43,9 @@ export class MapApp extends LitElement {
       grid-template-columns: 1fr auto 1fr;
       align-items: center;
       padding: 10px 12px;
-      background: #1f2937;
-      color: #fff;
-      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+      background: #f3f4f6;
+      color: #1f2937;
+      border-bottom: 1px solid #d1d5db;
     }
     .left {
       justify-self: start;
@@ -54,11 +57,11 @@ export class MapApp extends LitElement {
       font-size: 16px;
       padding: 6px 14px;
       border-radius: 999px;
-      background: rgba(255, 255, 255, 0.08);
+      background: #e5e7eb;
       user-select: none;
     }
     .center:hover {
-      background: rgba(255, 255, 255, 0.16);
+      background: #d1d5db;
     }
     .right {
       justify-self: end;
@@ -130,6 +133,9 @@ export class MapApp extends LitElement {
   @state() private addProjectOpen = false;
   @state() private acquiringGps = false;
 
+  @state() private pointTypes: PointType[] = [];
+  @state() private addPointTypeOpen = false;
+
   @state() private dialogMode: DialogMode | null = null;
   @state() private dialogValues: DialogValues | null = null;
   @state() private editingPoint: Point | null = null;
@@ -156,7 +162,18 @@ export class MapApp extends LitElement {
   private async selectProject(project: Project) {
     this.currentProject = project;
     this.pickerOpen = false;
+    await this.refreshPointTypes();
     await this.refreshPoints({ fitBounds: true });
+  }
+
+  private async refreshPointTypes() {
+    if (!this.currentProject) return;
+    try {
+      this.pointTypes = await fetchPointTypes(this.currentProject.uuid);
+    } catch (err) {
+      console.error("Failed to load point types:", err);
+      this.pointTypes = [];
+    }
   }
 
   private async refreshPoints(options: { fitBounds?: boolean } = {}) {
@@ -199,6 +216,38 @@ export class MapApp extends LitElement {
     this.pickerOpen = true;
   }
 
+  private onAddPointTypeRequested(e: CustomEvent<AddPointSubmitDetail>) {
+    if (!this.dialogValues) return;
+    this.dialogValues = {
+      ...this.dialogValues,
+      name: e.detail.name,
+      type: e.detail.type,
+      description: e.detail.description,
+    };
+    this.addPointTypeOpen = true;
+  }
+
+  private onAddPointTypeCancelled() {
+    this.addPointTypeOpen = false;
+  }
+
+  private async onAddPointTypeSubmit(e: CustomEvent<AddPointTypeSubmitDetail>) {
+    if (!this.currentProject || !this.dialogValues) return;
+    try {
+      const created = await createPointType({
+        name: e.detail.name,
+        description: e.detail.description,
+        projectUuid: this.currentProject.uuid,
+      });
+      await this.refreshPointTypes();
+      this.dialogValues = { ...this.dialogValues, type: created.uuid };
+      this.addPointTypeOpen = false;
+    } catch (err) {
+      console.error("Failed to create point type:", err);
+      alert("Failed to create point type");
+    }
+  }
+
   private async onAddProjectSubmit(e: CustomEvent<AddProjectSubmitDetail>) {
     try {
       await createProject(e.detail);
@@ -221,7 +270,7 @@ export class MapApp extends LitElement {
       this.editingPoint = null;
       this.dialogValues = {
         name: "",
-        type: POINT_TYPES[0],
+        type: this.pointTypes[0]?.uuid ?? "",
         description: "",
         latitude: pos.coords.latitude,
         longitude: pos.coords.longitude,
@@ -256,9 +305,10 @@ export class MapApp extends LitElement {
 
   private onPointEditRequested(e: CustomEvent<Point>) {
     const p = e.detail;
-    const type = (POINT_TYPES as readonly string[]).includes(p.type)
-      ? (p.type as PointType)
-      : POINT_TYPES[0];
+    const type =
+      this.pointTypes.find((t) => t.uuid === p.type)?.uuid ??
+      this.pointTypes[0]?.uuid ??
+      "";
     this.dialogMode = "edit";
     this.editingPoint = p;
     this.dialogValues = {
@@ -350,7 +400,10 @@ export class MapApp extends LitElement {
   }
 
   render() {
-    const showDialog = this.dialogMode !== null && !this.positionEditOpen;
+    const showDialog =
+      this.dialogMode !== null &&
+      !this.positionEditOpen &&
+      !this.addPointTypeOpen;
     return html`
       <header class="app-header">
         <span class="left"></span>
@@ -400,10 +453,20 @@ export class MapApp extends LitElement {
               .initialName=${this.dialogValues.name}
               .initialType=${this.dialogValues.type}
               .initialDescription=${this.dialogValues.description}
+              .pointTypes=${this.pointTypes}
               @dialog-submit=${this.onDialogSubmit}
               @dialog-cancelled=${this.onDialogCancelled}
               @edit-position=${this.onEditPositionRequested}
+              @add-point-type-requested=${this.onAddPointTypeRequested}
             ></add-point-dialog>
+          `
+        : ""}
+      ${this.addPointTypeOpen
+        ? html`
+            <add-point-type-dialog
+              @dialog-submit=${this.onAddPointTypeSubmit}
+              @dialog-cancelled=${this.onAddPointTypeCancelled}
+            ></add-point-type-dialog>
           `
         : ""}
       ${this.positionEditOpen

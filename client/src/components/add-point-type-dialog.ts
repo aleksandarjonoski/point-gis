@@ -1,17 +1,15 @@
 import { LitElement, html, css } from "lit";
 import { customElement, state } from "lit/decorators.js";
 
-export interface AddProjectSubmitDetail {
+export interface AddPointTypeSubmitDetail {
   name: string;
   description: string;
-  isPublic: boolean;
 }
 
-@customElement("add-project-dialog")
-export class AddProjectDialog extends LitElement {
+@customElement("add-point-type-dialog")
+export class AddPointTypeDialog extends LitElement {
   @state() private name = "";
   @state() private description = "";
-  @state() private isPublic = false;
   @state() private saving = false;
 
   static styles = css`
@@ -62,14 +60,7 @@ export class AddProjectDialog extends LitElement {
       font-size: 13px;
       color: #444;
     }
-    label.row {
-      flex-direction: row;
-      align-items: center;
-      gap: 10px;
-      font-size: 15px;
-      color: #222;
-    }
-    input[type="text"],
+    input,
     textarea {
       font-size: 15px;
       padding: 10px 12px;
@@ -80,17 +71,12 @@ export class AddProjectDialog extends LitElement {
     }
     textarea {
       resize: vertical;
-      min-height: 60px;
+      min-height: 80px;
     }
     input:focus,
     textarea:focus {
       outline: none;
       border-color: #2563eb;
-    }
-    input[type="checkbox"] {
-      width: 18px;
-      height: 18px;
-      accent-color: #2563eb;
     }
     footer {
       display: flex;
@@ -133,11 +119,10 @@ export class AddProjectDialog extends LitElement {
     if (!this.name.trim() || this.saving) return;
     this.saving = true;
     this.dispatchEvent(
-      new CustomEvent<AddProjectSubmitDetail>("dialog-submit", {
+      new CustomEvent<AddPointTypeSubmitDetail>("dialog-submit", {
         detail: {
           name: this.name.trim(),
           description: this.description.trim(),
-          isPublic: this.isPublic,
         },
         bubbles: true,
         composed: true,
@@ -149,7 +134,7 @@ export class AddProjectDialog extends LitElement {
     return html`
       <div class="panel">
         <header>
-          <span>Add project</span>
+          <span>Add point type</span>
           <button class="close" @click=${this.cancel}>×</button>
         </header>
         <div class="body">
@@ -160,7 +145,7 @@ export class AddProjectDialog extends LitElement {
               .value=${this.name}
               @input=${(e: InputEvent) =>
                 (this.name = (e.target as HTMLInputElement).value)}
-              placeholder="e.g. My orchard"
+              placeholder="e.g. Oak"
             />
           </label>
           <label>
@@ -172,15 +157,6 @@ export class AddProjectDialog extends LitElement {
                 (this.description = (e.target as HTMLTextAreaElement).value)}
               placeholder="Optional description"
             ></textarea>
-          </label>
-          <label class="row">
-            <input
-              type="checkbox"
-              .checked=${this.isPublic}
-              @change=${(e: Event) =>
-                (this.isPublic = (e.target as HTMLInputElement).checked)}
-            />
-            Public (visible to all users)
           </label>
         </div>
         <footer>

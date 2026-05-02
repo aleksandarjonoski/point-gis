@@ -27,7 +27,9 @@ export class ProjectPicker extends LitElement {
       align-items: center;
       justify-content: space-between;
       padding: 12px 16px;
-      border-bottom: 1px solid #e5e5e5;
+      background: #fafafa;
+      border-bottom: 1px solid #d1d5db;
+      color: #1f2937;
       font-weight: 600;
       font-size: 16px;
     }

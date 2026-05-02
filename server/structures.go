@@ -38,3 +38,11 @@ type Project struct {
 	UserUUID    string `json:"userUuid"`
 	IsPublic    bool   `json:"isPublic"`
 }
+
+type PointType struct {
+	ID          int    `json:"id"`
+	UUID        string `json:"uuid"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	ProjectUUID string `json:"projectUuid"`
+}
