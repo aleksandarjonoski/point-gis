@@ -1,5 +1,11 @@
 import { LitElement, html, css } from "lit";
 import { customElement, state } from "lit/decorators.js";
+import {
+  mdiPlus,
+  mdiMapMarkerPlus,
+  mdiTargetVariant,
+  mdiLoading,
+} from "@mdi/js";
 import "./leaflet-map";
 import "./project-picker";
 import "./add-point-dialog";
@@ -136,9 +142,9 @@ export class MapApp extends LitElement {
       width: 56px;
       height: 56px;
       border-radius: 50%;
-      background: #2563eb;
-      color: #fff;
-      border: none;
+      background: #fff;
+      color: #1f2937;
+      border: 1px solid #e5e7eb;
       cursor: pointer;
       box-shadow: 0 3px 6px rgba(0, 0, 0, 0.16), 0 3px 6px rgba(0, 0, 0, 0.23);
       display: flex;
@@ -148,7 +154,7 @@ export class MapApp extends LitElement {
       transition: background 0.15s ease;
     }
     .fab:hover {
-      background: #1d4ed8;
+      background: #f3f4f6;
     }
     .fab svg {
       width: 24px;
@@ -157,6 +163,19 @@ export class MapApp extends LitElement {
     }
     .fab.fab-open svg {
       transform: rotate(45deg);
+    }
+    .fab-mini.fab-mini-loading[disabled] {
+      cursor: wait;
+      opacity: 1;
+    }
+    .fab-mini.fab-mini-loading svg {
+      animation: fabSpin 0.9s linear infinite;
+      color: #2563eb;
+    }
+    @keyframes fabSpin {
+      to {
+        transform: rotate(360deg);
+      }
     }
     .fab-menu {
       position: fixed;
@@ -190,6 +209,21 @@ export class MapApp extends LitElement {
     .fab-mini svg {
       width: 20px;
       height: 20px;
+    }
+    .locating-label {
+      position: fixed;
+      right: 20px;
+      bottom: 120px;
+      background: #fff;
+      color: #1f2937;
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 500;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12),
+        0 1px 2px rgba(0, 0, 0, 0.08);
+      white-space: nowrap;
+      z-index: 850;
     }
   `;
 
@@ -350,7 +384,6 @@ export class MapApp extends LitElement {
   }
 
   private fabAddPoint() {
-    this.fabMenuOpen = false;
     this.onAddPointClicked();
   }
 
@@ -384,6 +417,7 @@ export class MapApp extends LitElement {
         latitude: pos.coords.latitude,
         longitude: pos.coords.longitude,
       };
+      this.fabMenuOpen = false;
     } catch (err) {
       console.error("GPS error:", err);
       alert("Could not get GPS position");
@@ -604,6 +638,9 @@ export class MapApp extends LitElement {
             </div>
           `
         : ""}
+      ${this.fabMenuOpen && this.acquiringGps
+        ? html`<div class="locating-label">Locating...</div>`
+        : ""}
       ${this.fabMenuOpen
         ? html`
             <div class="fab-menu">
@@ -613,37 +650,19 @@ export class MapApp extends LitElement {
                 @click=${this.fabAddPointAtCenter}
                 aria-label="Add point at map center"
               >
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  aria-hidden="true"
-                >
-                  <circle cx="12" cy="12" r="9" />
-                  <circle cx="12" cy="12" r="3" />
-                  <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
-                </svg>
+                ${mdiIcon(mdiTargetVariant)}
               </button>
               <button
-                class="fab-mini"
+                class="fab-mini ${this.acquiringGps
+                  ? "fab-mini-loading"
+                  : ""}"
                 ?disabled=${!this.currentProject || this.acquiringGps}
                 @click=${this.fabAddPoint}
-                aria-label="Add point"
+                aria-label=${this.acquiringGps
+                  ? "Locating..."
+                  : "Add point at current location"}
               >
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-                  <circle cx="12" cy="10" r="3" />
-                </svg>
+                ${mdiIcon(this.acquiringGps ? mdiLoading : mdiMapMarkerPlus)}
               </button>
             </div>
           `
@@ -653,17 +672,16 @@ export class MapApp extends LitElement {
         @click=${this.toggleFabMenu}
         aria-label=${this.fabMenuOpen ? "Close menu" : "Open menu"}
       >
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          aria-hidden="true"
-        >
-          <path d="M12 5v14M5 12h14" />
-        </svg>
+        ${mdiIcon(mdiPlus)}
       </button>
     `;
   }
+}
+
+function mdiIcon(path: string) {
+  return html`
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d=${path} />
+    </svg>
+  `;
 }
