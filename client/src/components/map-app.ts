@@ -132,7 +132,7 @@ export class MapApp extends LitElement {
     .fab {
       position: fixed;
       right: 20px;
-      bottom: 20px;
+      bottom: 60px;
       width: 56px;
       height: 56px;
       border-radius: 50%;
@@ -161,7 +161,7 @@ export class MapApp extends LitElement {
     .fab-menu {
       position: fixed;
       right: 86px;
-      bottom: 26px;
+      bottom: 66px;
       display: flex;
       gap: 12px;
       align-items: center;
