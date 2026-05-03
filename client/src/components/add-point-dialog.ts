@@ -12,8 +12,6 @@ export interface AddPointSubmitDetail {
 
 export type DialogMode = "create" | "edit";
 
-const ADD_TYPE_SENTINEL = "__add_point_type__";
-
 @customElement("add-point-dialog")
 export class AddPointDialog extends LitElement {
   @property({ type: String }) mode: DialogMode = "create";
@@ -139,6 +137,35 @@ export class AddPointDialog extends LitElement {
     button.edit-pos:hover {
       background: #eff5ff;
     }
+    button.type-button {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      width: 100%;
+      font-size: 15px;
+      padding: 10px 12px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      background: #fff;
+      color: #1f2937;
+      font-family: inherit;
+      cursor: pointer;
+      text-align: left;
+    }
+    button.type-button:focus {
+      outline: none;
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+    }
+    button.type-button svg {
+      width: 12px;
+      height: 8px;
+      flex: none;
+    }
+    .type-placeholder {
+      color: #888;
+    }
     footer {
       display: flex;
       justify-content: flex-end;
@@ -215,21 +242,14 @@ export class AddPointDialog extends LitElement {
     );
   }
 
-  private onTypeChange(e: Event) {
-    const select = e.target as HTMLSelectElement;
-    const value = select.value;
-    if (value === ADD_TYPE_SENTINEL) {
-      select.value = this.type;
-      this.dispatchEvent(
-        new CustomEvent<AddPointSubmitDetail>("add-point-type-requested", {
-          detail: this.currentDetail(),
-          bubbles: true,
-          composed: true,
-        })
-      );
-      return;
-    }
-    this.type = value;
+  private openTypePicker() {
+    this.dispatchEvent(
+      new CustomEvent<AddPointSubmitDetail>("open-point-type-picker", {
+        detail: this.currentDetail(),
+        bubbles: true,
+        composed: true,
+      })
+    );
   }
 
   render() {
@@ -253,13 +273,30 @@ export class AddPointDialog extends LitElement {
           </label>
           <label>
             Type
-            <select .value=${this.type} @change=${this.onTypeChange}>
-              <option value="" disabled hidden>-- Select type --</option>
-              ${this.pointTypes.map(
-                (t) => html`<option value=${t.uuid}>${t.name}</option>`
-              )}
-              <option value=${ADD_TYPE_SENTINEL}>+ Add point type</option>
-            </select>
+            <button
+              type="button"
+              class="type-button"
+              @click=${this.openTypePicker}
+            >
+              <span class=${this.type ? "type-value" : "type-placeholder"}>
+                ${this.pointTypes.find((t) => t.uuid === this.type)?.name ??
+                "-- Select type --"}
+              </span>
+              <svg
+                viewBox="0 0 12 8"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true"
+              >
+                <path
+                  d="M1 1.5l5 5 5-5"
+                  fill="none"
+                  stroke="#1f2937"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
           </label>
           <label>
             Description

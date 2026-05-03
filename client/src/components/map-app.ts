@@ -5,6 +5,7 @@ import "./project-picker";
 import "./add-point-dialog";
 import "./add-project-dialog";
 import "./add-point-type-dialog";
+import "./point-type-picker";
 import { LeafletMap } from "./leaflet-map";
 import {
   fetchProjects,
@@ -135,6 +136,7 @@ export class MapApp extends LitElement {
 
   @state() private pointTypes: PointType[] = [];
   @state() private addPointTypeOpen = false;
+  @state() private pointTypePickerOpen = false;
 
   @state() private dialogMode: DialogMode | null = null;
   @state() private dialogValues: DialogValues | null = null;
@@ -184,7 +186,10 @@ export class MapApp extends LitElement {
       const mapEl = this.shadowRoot?.querySelector(
         "leaflet-map"
       ) as LeafletMap | null;
-      mapEl?.renderPoints(points, options);
+      mapEl?.renderPoints(points, {
+        ...options,
+        pointTypes: this.pointTypes,
+      });
     } catch (err) {
       console.error("Failed to load points:", err);
     }
@@ -216,7 +221,7 @@ export class MapApp extends LitElement {
     this.pickerOpen = true;
   }
 
-  private onAddPointTypeRequested(e: CustomEvent<AddPointSubmitDetail>) {
+  private onOpenPointTypePicker(e: CustomEvent<AddPointSubmitDetail>) {
     if (!this.dialogValues) return;
     this.dialogValues = {
       ...this.dialogValues,
@@ -224,6 +229,20 @@ export class MapApp extends LitElement {
       type: e.detail.type,
       description: e.detail.description,
     };
+    this.pointTypePickerOpen = true;
+  }
+
+  private onPointTypeSelected(e: CustomEvent<PointType>) {
+    if (!this.dialogValues) return;
+    this.dialogValues = { ...this.dialogValues, type: e.detail.uuid };
+    this.pointTypePickerOpen = false;
+  }
+
+  private onPointTypePickerClosed() {
+    this.pointTypePickerOpen = false;
+  }
+
+  private onAddPointTypeRequested() {
     this.addPointTypeOpen = true;
   }
 
@@ -232,15 +251,14 @@ export class MapApp extends LitElement {
   }
 
   private async onAddPointTypeSubmit(e: CustomEvent<AddPointTypeSubmitDetail>) {
-    if (!this.currentProject || !this.dialogValues) return;
+    if (!this.currentProject) return;
     try {
-      const created = await createPointType({
+      await createPointType({
         name: e.detail.name,
         description: e.detail.description,
         projectUuid: this.currentProject.uuid,
       });
       await this.refreshPointTypes();
-      this.dialogValues = { ...this.dialogValues, type: created.uuid };
       this.addPointTypeOpen = false;
     } catch (err) {
       console.error("Failed to create point type:", err);
@@ -403,7 +421,10 @@ export class MapApp extends LitElement {
     const showDialog =
       this.dialogMode !== null &&
       !this.positionEditOpen &&
-      !this.addPointTypeOpen;
+      !this.addPointTypeOpen &&
+      !this.pointTypePickerOpen;
+    const showTypePicker =
+      this.pointTypePickerOpen && !this.addPointTypeOpen;
     return html`
       <header class="app-header">
         <span class="left"></span>
@@ -457,8 +478,19 @@ export class MapApp extends LitElement {
               @dialog-submit=${this.onDialogSubmit}
               @dialog-cancelled=${this.onDialogCancelled}
               @edit-position=${this.onEditPositionRequested}
-              @add-point-type-requested=${this.onAddPointTypeRequested}
+              @open-point-type-picker=${this.onOpenPointTypePicker}
             ></add-point-dialog>
+          `
+        : ""}
+      ${showTypePicker
+        ? html`
+            <point-type-picker
+              .pointTypes=${this.pointTypes}
+              .selectedUuid=${this.dialogValues?.type ?? ""}
+              @point-type-selected=${this.onPointTypeSelected}
+              @picker-closed=${this.onPointTypePickerClosed}
+              @add-point-type-requested=${this.onAddPointTypeRequested}
+            ></point-type-picker>
           `
         : ""}
       ${this.addPointTypeOpen

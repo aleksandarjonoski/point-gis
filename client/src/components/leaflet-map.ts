@@ -1,9 +1,9 @@
 import { LitElement, html, css, PropertyValues } from "lit";
-import { customElement } from "lit/decorators.js";
+import { customElement, state } from "lit/decorators.js";
 import * as L from "leaflet";
 const { map: createMap, tileLayer, control, marker } = L;
 import type { Map as LMap, MarkerClusterGroup, Marker } from "leaflet";
-import type { Point } from "../services/api";
+import type { Point, PointType } from "../services/api";
 
 import "leaflet/dist/leaflet.css";
 import "leaflet.markercluster/dist/MarkerCluster.css";
@@ -15,6 +15,44 @@ export class LeafletMap extends LitElement {
   static get styles() {
     return [
       css`
+        :host {
+          display: block;
+          position: relative;
+        }
+        .center-pin-overlay {
+          position: absolute;
+          left: 50%;
+          top: 50%;
+          width: 38px;
+          height: 52px;
+          pointer-events: none;
+          z-index: 1000;
+          filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.4));
+          transform-origin: 50% 100%;
+          animation: centerPinPulse 1.4s ease-in-out infinite;
+        }
+        @keyframes centerPinPulse {
+          0%,
+          100% {
+            transform: translate(-50%, -100%) scale(1);
+          }
+          50% {
+            transform: translate(-50%, -100%) scale(1.1);
+          }
+        }
+        .center-pin-overlay svg {
+          width: 100%;
+          height: 100%;
+          display: block;
+        }
+        .center-pin-overlay svg path {
+          fill: #f59e0b;
+          stroke: #fff;
+          stroke-width: 2;
+        }
+        .center-pin-overlay svg circle {
+          fill: #fff;
+        }
         .cluster-bubble-icon {
           background: transparent !important;
           border: none !important;
@@ -86,6 +124,7 @@ export class LeafletMap extends LitElement {
   private markersByUuid: Map<string, Marker> = new Map();
   private editMarker: Marker | null = null;
   private hiddenMarker: { uuid: string; marker: Marker } | null = null;
+  @state() private editMode: "drag" | "center" | null = null;
 
   constructor() {
     super();
@@ -137,6 +176,18 @@ export class LeafletMap extends LitElement {
     return html`
       <link rel="stylesheet" href="./node_modules/leaflet/dist/leaflet.css" />
       <div id="mapid" style="height: 100%;"></div>
+      ${this.editMode === "center"
+        ? html`
+            <div class="center-pin-overlay">
+              <svg viewBox="0 0 38 52" xmlns="http://www.w3.org/2000/svg">
+                <path
+                  d="M19 0 C8.5 0 0 8.5 0 19 C0 33 19 52 19 52 C19 52 38 33 38 19 C38 8.5 29.5 0 19 0 Z"
+                />
+                <circle cx="19" cy="19" r="6" />
+              </svg>
+            </div>
+          `
+        : ""}
     `;
   }
 
@@ -150,9 +201,13 @@ export class LeafletMap extends LitElement {
     LeafletMap.map.flyTo([lat, lng], zoom, { duration: 0.6 });
   }
 
-  public renderPoints(points: Point[], options: { fitBounds?: boolean } = {}) {
+  public renderPoints(
+    points: Point[],
+    options: { fitBounds?: boolean; pointTypes?: PointType[] } = {}
+  ) {
     if (!LeafletMap.map) return;
-    const { fitBounds = false } = options;
+    const { fitBounds = false, pointTypes = [] } = options;
+    const typeNameByUuid = new Map(pointTypes.map((t) => [t.uuid, t.name]));
 
     if (this.pointsLayer) {
       LeafletMap.map.removeLayer(this.pointsLayer);
@@ -162,7 +217,7 @@ export class LeafletMap extends LitElement {
 
     const markers: Marker[] = points.map((p) => {
       const m = marker([p.latitude, p.longitude]);
-      m.bindPopup(this.buildPointPopup(p, m));
+      m.bindPopup(this.buildPointPopup(p, m, typeNameByUuid));
       this.markersByUuid.set(p.uuid, m);
       return m;
     });
@@ -193,7 +248,11 @@ export class LeafletMap extends LitElement {
     }
   }
 
-  private buildPointPopup(p: Point, m: Marker): HTMLElement {
+  private buildPointPopup(
+    p: Point,
+    m: Marker,
+    typeNameByUuid: Map<string, string>
+  ): HTMLElement {
     const container = document.createElement("div");
     container.style.minWidth = "180px";
     container.style.fontFamily = "system-ui, sans-serif";
@@ -204,9 +263,10 @@ export class LeafletMap extends LitElement {
     name.style.marginBottom = "4px";
     container.appendChild(name);
 
-    if (p.type) {
+    const typeLabel = typeNameByUuid.get(p.type) ?? "";
+    if (typeLabel) {
       const type = document.createElement("div");
-      type.textContent = p.type;
+      type.textContent = typeLabel;
       type.style.fontSize = "12px";
       type.style.color = "#555";
       type.style.marginBottom = "4px";
@@ -242,8 +302,14 @@ export class LeafletMap extends LitElement {
 
   public startPositionEdit(lat: number, lng: number, hidePointUuid?: string) {
     if (!LeafletMap.map) return;
+
+    this.editMode = window.matchMedia("(pointer: coarse)").matches
+      ? "center"
+      : "drag";
+
     if (this.editMarker) {
       LeafletMap.map.removeLayer(this.editMarker);
+      this.editMarker = null;
     }
 
     if (hidePointUuid && this.pointsLayer) {
@@ -254,31 +320,41 @@ export class LeafletMap extends LitElement {
       }
     }
 
-    const editIcon = L.divIcon({
-      html: `
-        <div class="edit-pin">
-          <svg viewBox="0 0 38 52" xmlns="http://www.w3.org/2000/svg">
-            <path d="M19 0 C8.5 0 0 8.5 0 19 C0 33 19 52 19 52 C19 52 38 33 38 19 C38 8.5 29.5 0 19 0 Z" />
-            <circle cx="19" cy="19" r="6" />
-          </svg>
-        </div>
-      `,
-      className: "edit-pin-icon",
-      iconSize: [38, 52],
-      iconAnchor: [19, 52],
-    });
-    this.editMarker = marker([lat, lng], { draggable: true, icon: editIcon });
-    this.editMarker.addTo(LeafletMap.map);
     LeafletMap.map.setView([lat, lng], Math.max(LeafletMap.map.getZoom(), 17));
+
+    if (this.editMode === "drag") {
+      const editIcon = L.divIcon({
+        html: `
+          <div class="edit-pin">
+            <svg viewBox="0 0 38 52" xmlns="http://www.w3.org/2000/svg">
+              <path d="M19 0 C8.5 0 0 8.5 0 19 C0 33 19 52 19 52 C19 52 38 33 38 19 C38 8.5 29.5 0 19 0 Z" />
+              <circle cx="19" cy="19" r="6" />
+            </svg>
+          </div>
+        `,
+        className: "edit-pin-icon",
+        iconSize: [38, 52],
+        iconAnchor: [19, 52],
+      });
+      this.editMarker = marker([lat, lng], { draggable: true, icon: editIcon });
+      this.editMarker.addTo(LeafletMap.map);
+    }
   }
 
   public stopPositionEdit(): { latitude: number; longitude: number } | null {
-    if (!this.editMarker) return null;
-    const ll = this.editMarker.getLatLng();
-    LeafletMap.map.removeLayer(this.editMarker);
-    this.editMarker = null;
+    let result: { latitude: number; longitude: number } | null = null;
+    if (this.editMode === "drag" && this.editMarker) {
+      const ll = this.editMarker.getLatLng();
+      LeafletMap.map.removeLayer(this.editMarker);
+      this.editMarker = null;
+      result = { latitude: ll.lat, longitude: ll.lng };
+    } else if (this.editMode === "center" && LeafletMap.map) {
+      const c = LeafletMap.map.getCenter();
+      result = { latitude: c.lat, longitude: c.lng };
+    }
     this.hiddenMarker = null;
-    return { latitude: ll.lat, longitude: ll.lng };
+    this.editMode = null;
+    return result;
   }
 
   public cancelPositionEdit() {
@@ -290,6 +366,7 @@ export class LeafletMap extends LitElement {
       this.pointsLayer.addLayer(this.hiddenMarker.marker);
       this.hiddenMarker = null;
     }
+    this.editMode = null;
   }
 
   private async centerToCurrentLocation() {
