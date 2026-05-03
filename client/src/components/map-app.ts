@@ -46,7 +46,9 @@ export class MapApp extends LitElement {
       padding: 10px 12px;
       background: #f3f4f6;
       color: #1f2937;
-      border-bottom: 1px solid #d1d5db;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
+      position: relative;
+      z-index: 900;
     }
     .left {
       justify-self: start;
@@ -126,6 +128,69 @@ export class MapApp extends LitElement {
       background: #2563eb;
       color: #fff;
     }
+
+    .fab {
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 3px 6px rgba(0, 0, 0, 0.16), 0 3px 6px rgba(0, 0, 0, 0.23);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 850;
+      transition: background 0.15s ease;
+    }
+    .fab:hover {
+      background: #1d4ed8;
+    }
+    .fab svg {
+      width: 24px;
+      height: 24px;
+      transition: transform 0.2s ease;
+    }
+    .fab.fab-open svg {
+      transform: rotate(45deg);
+    }
+    .fab-menu {
+      position: fixed;
+      right: 86px;
+      bottom: 26px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      z-index: 850;
+    }
+    .fab-mini {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: #fff;
+      color: #1f2937;
+      border: 1px solid #e5e7eb;
+      cursor: pointer;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .fab-mini:hover:not(:disabled) {
+      background: #f3f4f6;
+    }
+    .fab-mini[disabled] {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .fab-mini svg {
+      width: 20px;
+      height: 20px;
+    }
   `;
 
   @state() private projects: Project[] = [];
@@ -133,6 +198,7 @@ export class MapApp extends LitElement {
   @state() private pickerOpen = false;
   @state() private addProjectOpen = false;
   @state() private acquiringGps = false;
+  @state() private fabMenuOpen = false;
 
   @state() private pointTypes: PointType[] = [];
   @state() private addPointTypeOpen = false;
@@ -279,6 +345,31 @@ export class MapApp extends LitElement {
     }
   }
 
+  private toggleFabMenu() {
+    this.fabMenuOpen = !this.fabMenuOpen;
+  }
+
+  private fabAddPoint() {
+    this.fabMenuOpen = false;
+    this.onAddPointClicked();
+  }
+
+  private fabAddPointAtCenter() {
+    if (!this.currentProject) return;
+    const center = this.getMap()?.getCenter();
+    if (!center) return;
+    this.fabMenuOpen = false;
+    this.dialogMode = "create";
+    this.editingPoint = null;
+    this.dialogValues = {
+      name: "",
+      type: this.pointTypes[0]?.uuid ?? "",
+      description: "",
+      latitude: center.latitude,
+      longitude: center.longitude,
+    };
+  }
+
   private async onAddPointClicked() {
     if (!this.currentProject || this.acquiringGps) return;
     this.acquiringGps = true;
@@ -423,8 +514,7 @@ export class MapApp extends LitElement {
       !this.positionEditOpen &&
       !this.addPointTypeOpen &&
       !this.pointTypePickerOpen;
-    const showTypePicker =
-      this.pointTypePickerOpen && !this.addPointTypeOpen;
+    const showTypePicker = this.pointTypePickerOpen && !this.addPointTypeOpen;
     return html`
       <header class="app-header">
         <span class="left"></span>
@@ -432,13 +522,13 @@ export class MapApp extends LitElement {
           ${this.currentProject?.name ?? "Loading..."}
         </span>
         <span class="right">
-          <button
+          <!-- <button
             class="add"
             ?disabled=${!this.currentProject || this.acquiringGps}
             @click=${this.onAddPointClicked}
           >
             ${this.acquiringGps ? "Locating..." : "Add point"}
-          </button>
+          </button> -->
         </span>
       </header>
       <div class="map-wrap">
@@ -514,6 +604,66 @@ export class MapApp extends LitElement {
             </div>
           `
         : ""}
+      ${this.fabMenuOpen
+        ? html`
+            <div class="fab-menu">
+              <button
+                class="fab-mini"
+                ?disabled=${!this.currentProject}
+                @click=${this.fabAddPointAtCenter}
+                aria-label="Add point at map center"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  aria-hidden="true"
+                >
+                  <circle cx="12" cy="12" r="9" />
+                  <circle cx="12" cy="12" r="3" />
+                  <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+                </svg>
+              </button>
+              <button
+                class="fab-mini"
+                ?disabled=${!this.currentProject || this.acquiringGps}
+                @click=${this.fabAddPoint}
+                aria-label="Add point"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                  <circle cx="12" cy="10" r="3" />
+                </svg>
+              </button>
+            </div>
+          `
+        : ""}
+      <button
+        class="fab ${this.fabMenuOpen ? "fab-open" : ""}"
+        @click=${this.toggleFabMenu}
+        aria-label=${this.fabMenuOpen ? "Close menu" : "Open menu"}
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          aria-hidden="true"
+        >
+          <path d="M12 5v14M5 12h14" />
+        </svg>
+      </button>
     `;
   }
 }

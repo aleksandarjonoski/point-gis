@@ -201,6 +201,12 @@ export class LeafletMap extends LitElement {
     LeafletMap.map.flyTo([lat, lng], zoom, { duration: 0.6 });
   }
 
+  public getCenter(): { latitude: number; longitude: number } | null {
+    if (!LeafletMap.map) return null;
+    const c = LeafletMap.map.getCenter();
+    return { latitude: c.lat, longitude: c.lng };
+  }
+
   public renderPoints(
     points: Point[],
     options: { fitBounds?: boolean; pointTypes?: PointType[] } = {}
