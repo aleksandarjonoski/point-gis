@@ -73,6 +73,21 @@ func deleteProjectByUUID(uuid string) (int64, error) {
 	return n, nil
 }
 
+// updateProjectByUUID updates a project's editable fields and returns the
+// number of rows affected.
+func updateProjectByUUID(uuid string, p Project) (int64, error) {
+	res, err := DB.Exec(
+		`UPDATE project
+		 SET name = $1, description = $2, is_public = $3
+		 WHERE uuid = $4`,
+		p.Name, p.Description, p.IsPublic, uuid,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}
+
 // insertProject inserts a project owned by userUUID and returns its new UUID.
 func insertProject(p Project, userUUID string) (string, error) {
 	var newUUID string

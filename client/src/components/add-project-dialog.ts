@@ -1,5 +1,5 @@
-import { LitElement, html, css } from "lit";
-import { customElement, state } from "lit/decorators.js";
+import { LitElement, html, css, PropertyValues } from "lit";
+import { customElement, property, state } from "lit/decorators.js";
 
 export interface AddProjectSubmitDetail {
   name: string;
@@ -7,8 +7,15 @@ export interface AddProjectSubmitDetail {
   isPublic: boolean;
 }
 
+export type ProjectDialogMode = "create" | "edit";
+
 @customElement("add-project-dialog")
 export class AddProjectDialog extends LitElement {
+  @property({ type: String }) mode: ProjectDialogMode = "create";
+  @property({ type: String }) initialName = "";
+  @property({ type: String }) initialDescription = "";
+  @property({ type: Boolean }) initialPublic = false;
+
   @state() private name = "";
   @state() private description = "";
   @state() private isPublic = false;
@@ -123,6 +130,13 @@ export class AddProjectDialog extends LitElement {
     }
   `;
 
+  protected willUpdate(changed: PropertyValues<this>) {
+    if (changed.has("initialName")) this.name = this.initialName;
+    if (changed.has("initialDescription"))
+      this.description = this.initialDescription;
+    if (changed.has("initialPublic")) this.isPublic = this.initialPublic;
+  }
+
   private cancel() {
     this.dispatchEvent(
       new CustomEvent("dialog-cancelled", { bubbles: true, composed: true })
@@ -146,10 +160,11 @@ export class AddProjectDialog extends LitElement {
   }
 
   render() {
+    const title = this.mode === "edit" ? "Edit project" : "Add project";
     return html`
       <div class="panel">
         <header>
-          <span>Add project</span>
+          <span>${title}</span>
           <button class="close" @click=${this.cancel}>×</button>
         </header>
         <div class="body">

@@ -1,6 +1,6 @@
 import { LitElement, html, css } from "lit";
 import { customElement, property } from "lit/decorators.js";
-import { mdiTrashCanOutline } from "@mdi/js";
+import { mdiTrashCanOutline, mdiPencilOutline } from "@mdi/js";
 import type { Project } from "../services/api";
 
 @customElement("project-picker")
@@ -94,24 +94,32 @@ export class ProjectPicker extends LitElement {
     .name {
       font-weight: 600;
     }
-    button.delete {
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      flex-shrink: 0;
+    }
+    button.icon-action {
       border: none;
       background: transparent;
       cursor: pointer;
       padding: 4px;
-      margin: -4px;
       border-radius: 6px;
       color: #9ca3af;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      flex-shrink: 0;
+    }
+    button.edit:hover {
+      background: #e7f0ff;
+      color: #2563eb;
     }
     button.delete:hover {
       background: #fde8e8;
       color: #dc2626;
     }
-    button.delete svg {
+    button.icon-action svg {
       width: 20px;
       height: 20px;
     }
@@ -138,6 +146,17 @@ export class ProjectPicker extends LitElement {
   private select(p: Project) {
     this.dispatchEvent(
       new CustomEvent<Project>("project-selected", {
+        detail: p,
+        bubbles: true,
+        composed: true,
+      })
+    );
+  }
+
+  private requestEdit(e: Event, p: Project) {
+    e.stopPropagation();
+    this.dispatchEvent(
+      new CustomEvent<Project>("project-edit-requested", {
         detail: p,
         bubbles: true,
         composed: true,
@@ -190,16 +209,28 @@ export class ProjectPicker extends LitElement {
                     >
                       <div class="name-row">
                         <span class="name">${p.name}</span>
-                        <button
-                          class="delete"
-                          aria-label="Delete project"
-                          title="Delete project"
-                          @click=${(e: Event) => this.requestDelete(e, p)}
-                        >
-                          <svg viewBox="0 0 24 24" fill="currentColor">
-                            <path d=${mdiTrashCanOutline} />
-                          </svg>
-                        </button>
+                        <span class="actions">
+                          <button
+                            class="icon-action edit"
+                            aria-label="Edit project"
+                            title="Edit project"
+                            @click=${(e: Event) => this.requestEdit(e, p)}
+                          >
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                              <path d=${mdiPencilOutline} />
+                            </svg>
+                          </button>
+                          <button
+                            class="icon-action delete"
+                            aria-label="Delete project"
+                            title="Delete project"
+                            @click=${(e: Event) => this.requestDelete(e, p)}
+                          >
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                              <path d=${mdiTrashCanOutline} />
+                            </svg>
+                          </button>
+                        </span>
                       </div>
                       ${p.description
                         ? html`<span class="desc">${p.description}</span>`

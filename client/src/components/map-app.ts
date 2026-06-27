@@ -20,6 +20,7 @@ import {
   updatePoint,
   deletePoint,
   createProject,
+  updateProject,
   deleteProject,
   fetchPointTypes,
   createPointType,
@@ -233,6 +234,7 @@ export class MapApp extends LitElement {
   @state() private currentProject: Project | null = null;
   @state() private pickerOpen = false;
   @state() private addProjectOpen = false;
+  @state() private editingProject: Project | null = null;
   @state() private acquiringGps = false;
   @state() private fabMenuOpen = false;
 
@@ -346,12 +348,20 @@ export class MapApp extends LitElement {
   }
 
   private onAddProjectRequested() {
+    this.editingProject = null;
+    this.pickerOpen = false;
+    this.addProjectOpen = true;
+  }
+
+  private onProjectEditRequested(e: CustomEvent<Project>) {
+    this.editingProject = e.detail;
     this.pickerOpen = false;
     this.addProjectOpen = true;
   }
 
   private onAddProjectCancelled() {
     this.addProjectOpen = false;
+    this.editingProject = null;
     this.pickerOpen = true;
   }
 
@@ -401,15 +411,25 @@ export class MapApp extends LitElement {
   }
 
   private async onAddProjectSubmit(e: CustomEvent<AddProjectSubmitDetail>) {
+    const editing = this.editingProject;
     try {
-      await createProject(e.detail);
+      if (editing) {
+        await updateProject(editing.uuid, e.detail);
+      } else {
+        await createProject(e.detail);
+      }
       const projects = await fetchProjects();
       this.projects = projects;
+      if (editing && this.currentProject?.uuid === editing.uuid) {
+        this.currentProject =
+          projects.find((p) => p.uuid === editing.uuid) ?? this.currentProject;
+      }
       this.addProjectOpen = false;
+      this.editingProject = null;
       this.pickerOpen = true;
     } catch (err) {
-      console.error("Failed to create project:", err);
-      alert("Failed to create project");
+      console.error("Failed to save project:", err);
+      alert("Failed to save project");
     }
   }
 
@@ -624,6 +644,7 @@ export class MapApp extends LitElement {
               .projects=${this.projects}
               .selectedUuid=${this.currentProject?.uuid ?? ""}
               @project-selected=${this.onProjectSelected}
+              @project-edit-requested=${this.onProjectEditRequested}
               @project-delete-requested=${this.onProjectDeleteRequested}
               @picker-closed=${this.onPickerClosed}
               @add-project-requested=${this.onAddProjectRequested}
@@ -633,6 +654,10 @@ export class MapApp extends LitElement {
       ${this.addProjectOpen
         ? html`
             <add-project-dialog
+              .mode=${this.editingProject ? "edit" : "create"}
+              .initialName=${this.editingProject?.name ?? ""}
+              .initialDescription=${this.editingProject?.description ?? ""}
+              .initialPublic=${this.editingProject?.isPublic ?? false}
               @dialog-submit=${this.onAddProjectSubmit}
               @dialog-cancelled=${this.onAddProjectCancelled}
             ></add-project-dialog>
