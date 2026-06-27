@@ -101,6 +101,13 @@ export async function updatePoint(
   if (!res.ok) throw new Error(`updatePoint failed: ${res.status}`);
 }
 
+export async function deletePoint(uuid: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/points/${encodeURIComponent(uuid)}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error(`deletePoint failed: ${res.status}`);
+}
+
 export async function fetchPointTypes(
   projectUuid: string
 ): Promise<PointType[]> {

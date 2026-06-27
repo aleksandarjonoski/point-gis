@@ -330,10 +330,13 @@ export class LeafletMap extends LitElement {
       container.appendChild(desc);
     }
 
+    const actions = document.createElement("div");
+    actions.style.cssText = "display:flex;gap:8px;margin-top:6px;";
+
     const btn = document.createElement("button");
     btn.textContent = "Edit";
     btn.style.cssText =
-      "background:#2563eb;color:#fff;border:none;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:13px;margin-top:6px;";
+      "background:#2563eb;color:#fff;border:none;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:13px;";
     btn.addEventListener("click", () => {
       m.closePopup();
       this.dispatchEvent(
@@ -344,7 +347,25 @@ export class LeafletMap extends LitElement {
         })
       );
     });
-    container.appendChild(btn);
+    actions.appendChild(btn);
+
+    const deleteBtn = document.createElement("button");
+    deleteBtn.textContent = "Delete";
+    deleteBtn.style.cssText =
+      "background:#dc2626;color:#fff;border:none;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:13px;";
+    deleteBtn.addEventListener("click", () => {
+      m.closePopup();
+      this.dispatchEvent(
+        new CustomEvent<Point>("point-delete-requested", {
+          detail: p,
+          bubbles: true,
+          composed: true,
+        })
+      );
+    });
+    actions.appendChild(deleteBtn);
+
+    container.appendChild(actions);
 
     return container;
   }

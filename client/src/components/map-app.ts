@@ -18,6 +18,7 @@ import {
   fetchPoints,
   createPoint,
   updatePoint,
+  deletePoint,
   createProject,
   fetchPointTypes,
   createPointType,
@@ -463,6 +464,19 @@ export class MapApp extends LitElement {
     };
   }
 
+  private async onPointDeleteRequested(e: CustomEvent<Point>) {
+    const p = e.detail;
+    const label = p.name?.trim() || "this point";
+    if (!confirm(`Delete ${label}? This cannot be undone.`)) return;
+    try {
+      await deletePoint(p.uuid);
+      await this.refreshPoints();
+    } catch (err) {
+      console.error("Failed to delete point:", err);
+      alert("Failed to delete point");
+    }
+  }
+
   private onEditPositionRequested(e: CustomEvent<AddPointSubmitDetail>) {
     if (!this.dialogValues) return;
     this.dialogValues = {
@@ -568,6 +582,7 @@ export class MapApp extends LitElement {
       <div class="map-wrap">
         <leaflet-map
           @point-edit-requested=${this.onPointEditRequested}
+          @point-delete-requested=${this.onPointDeleteRequested}
         ></leaflet-map>
       </div>
       ${this.pickerOpen
