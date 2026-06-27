@@ -39,6 +39,40 @@ func queryProjects(userUUID string) ([]Project, error) {
 	return projects, nil
 }
 
+// deleteProjectByUUID deletes a project together with all its points and point
+// types in a single transaction. It returns the number of project rows deleted.
+func deleteProjectByUUID(uuid string) (int64, error) {
+	tx, err := DB.Begin()
+	if err != nil {
+		return 0, err
+	}
+
+	if err := deletePointsByProject(tx, uuid); err != nil {
+		tx.Rollback()
+		return 0, err
+	}
+	if err := deletePointTypesByProject(tx, uuid); err != nil {
+		tx.Rollback()
+		return 0, err
+	}
+
+	res, err := tx.Exec(`DELETE FROM project WHERE uuid = $1`, uuid)
+	if err != nil {
+		tx.Rollback()
+		return 0, err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		tx.Rollback()
+		return 0, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
+	return n, nil
+}
+
 // insertProject inserts a project owned by userUUID and returns its new UUID.
 func insertProject(p Project, userUUID string) (string, error) {
 	var newUUID string

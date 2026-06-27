@@ -64,6 +64,13 @@ export async function createProject(body: NewProject): Promise<Project> {
   return res.json();
 }
 
+export async function deleteProject(uuid: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/projects/${encodeURIComponent(uuid)}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error(`deleteProject failed: ${res.status}`);
+}
+
 export async function fetchPoints(projectUuid: string): Promise<Point[]> {
   const res = await fetch(
     `${API_BASE}/points?projectUuid=${encodeURIComponent(projectUuid)}`

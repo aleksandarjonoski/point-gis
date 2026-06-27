@@ -76,6 +76,25 @@ func createProject(c *gin.Context) {
 	c.JSON(http.StatusCreated, p)
 }
 
+func deleteProject(c *gin.Context) {
+	uuid := strings.TrimSpace(c.Param("uuid"))
+	if uuid == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "missing uuid"})
+		return
+	}
+
+	n, err := deleteProjectByUUID(uuid)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if n == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "project not found"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "success"})
+}
+
 func getPointTypes(c *gin.Context) {
 	projectUUID := strings.TrimSpace(c.Query("projectUuid"))
 	if projectUUID == "" {

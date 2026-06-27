@@ -1,5 +1,6 @@
 import { LitElement, html, css } from "lit";
 import { customElement, property } from "lit/decorators.js";
+import { mdiTrashCanOutline } from "@mdi/js";
 import type { Project } from "../services/api";
 
 @customElement("project-picker")
@@ -84,8 +85,35 @@ export class ProjectPicker extends LitElement {
     li.selected {
       background: #eef5ff;
     }
+    .name-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
     .name {
       font-weight: 600;
+    }
+    button.delete {
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      padding: 4px;
+      margin: -4px;
+      border-radius: 6px;
+      color: #9ca3af;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    button.delete:hover {
+      background: #fde8e8;
+      color: #dc2626;
+    }
+    button.delete svg {
+      width: 20px;
+      height: 20px;
     }
     .desc {
       font-size: 12px;
@@ -110,6 +138,17 @@ export class ProjectPicker extends LitElement {
   private select(p: Project) {
     this.dispatchEvent(
       new CustomEvent<Project>("project-selected", {
+        detail: p,
+        bubbles: true,
+        composed: true,
+      })
+    );
+  }
+
+  private requestDelete(e: Event, p: Project) {
+    e.stopPropagation();
+    this.dispatchEvent(
+      new CustomEvent<Project>("project-delete-requested", {
         detail: p,
         bubbles: true,
         composed: true,
@@ -149,7 +188,19 @@ export class ProjectPicker extends LitElement {
                       class=${p.uuid === this.selectedUuid ? "selected" : ""}
                       @click=${() => this.select(p)}
                     >
-                      <span class="name">${p.name}</span>
+                      <div class="name-row">
+                        <span class="name">${p.name}</span>
+                        <button
+                          class="delete"
+                          aria-label="Delete project"
+                          title="Delete project"
+                          @click=${(e: Event) => this.requestDelete(e, p)}
+                        >
+                          <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d=${mdiTrashCanOutline} />
+                          </svg>
+                        </button>
+                      </div>
                       ${p.description
                         ? html`<span class="desc">${p.description}</span>`
                         : ""}

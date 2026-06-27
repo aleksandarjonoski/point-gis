@@ -35,6 +35,13 @@ func queryPointTypes(projectUUID string) ([]PointType, error) {
 	return types, nil
 }
 
+// deletePointTypesByProject deletes all point types belonging to a project. It
+// runs within the caller's transaction, which owns commit/rollback.
+func deletePointTypesByProject(tx *sql.Tx, projectUUID string) error {
+	_, err := tx.Exec(`DELETE FROM point_type WHERE project_uuid = $1`, projectUUID)
+	return err
+}
+
 // insertPointType inserts a point type and returns its new UUID.
 func insertPointType(pt PointType) (string, error) {
 	var newUUID string

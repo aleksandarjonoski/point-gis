@@ -20,6 +20,7 @@ import {
   updatePoint,
   deletePoint,
   createProject,
+  deleteProject,
   fetchPointTypes,
   createPointType,
   Project,
@@ -308,6 +309,38 @@ export class MapApp extends LitElement {
     this.selectProject(e.detail);
   }
 
+  private async onProjectDeleteRequested(e: CustomEvent<Project>) {
+    const project = e.detail;
+    if (
+      !confirm(
+        `Delete "${project.name}"? All its points will be removed. This cannot be undone.`
+      )
+    ) {
+      return;
+    }
+    try {
+      await deleteProject(project.uuid);
+      this.projects = this.projects.filter((p) => p.uuid !== project.uuid);
+      if (this.currentProject?.uuid === project.uuid) {
+        const next =
+          this.projects.find((p) => p.name === "General" && p.isPublic) ??
+          this.projects.find((p) => p.isPublic) ??
+          this.projects[0] ??
+          null;
+        if (next) {
+          await this.selectProject(next);
+        } else {
+          this.currentProject = null;
+          this.pointTypes = [];
+          this.getMap()?.renderPoints([], { pointTypes: [] });
+        }
+      }
+    } catch (err) {
+      console.error("Failed to delete project:", err);
+      alert("Failed to delete project");
+    }
+  }
+
   private onPickerClosed() {
     this.pickerOpen = false;
   }
@@ -591,6 +624,7 @@ export class MapApp extends LitElement {
               .projects=${this.projects}
               .selectedUuid=${this.currentProject?.uuid ?? ""}
               @project-selected=${this.onProjectSelected}
+              @project-delete-requested=${this.onProjectDeleteRequested}
               @picker-closed=${this.onPickerClosed}
               @add-project-requested=${this.onAddProjectRequested}
             ></project-picker>

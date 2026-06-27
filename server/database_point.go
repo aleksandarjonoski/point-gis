@@ -99,6 +99,13 @@ func updatePointByUUID(uuid string, p Point) (int64, error) {
 	return res.RowsAffected()
 }
 
+// deletePointsByProject deletes all points belonging to a project. It runs
+// within the caller's transaction, which owns commit/rollback.
+func deletePointsByProject(tx *sql.Tx, projectUUID string) error {
+	_, err := tx.Exec(`DELETE FROM point WHERE project_uuid = $1`, projectUUID)
+	return err
+}
+
 // deletePointByUUID deletes a point and returns the number of rows affected.
 func deletePointByUUID(uuid string) (int64, error) {
 	res, err := DB.Exec(`DELETE FROM point WHERE uuid = $1`, uuid)
