@@ -115,11 +115,33 @@ export class LeafletMap extends LitElement {
             transform: scale(1.1);
           }
         }
+
+        .point-label {
+          background: rgba(255, 255, 255, 0.92);
+          border: 1px solid rgba(0, 0, 0, 0.15);
+          border-radius: 4px;
+          padding: 2px 6px;
+          font-family: system-ui, -apple-system, sans-serif;
+          font-size: 12px;
+          font-weight: 500;
+          color: #1f2937;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+          white-space: nowrap;
+          pointer-events: none;
+        }
+        .point-label::before {
+          display: none !important;
+        }
+        .labels-hidden .point-label {
+          display: none !important;
+        }
       `,
     ];
   }
 
   static map: LMap;
+  // Point labels are only shown when zoomed in to this level or beyond.
+  private static readonly LABEL_MIN_ZOOM = 15;
   private pointsLayer: MarkerClusterGroup | null = null;
   private markersByUuid: Map<string, Marker> = new Map();
   private editMarker: Marker | null = null;
@@ -169,7 +191,17 @@ export class LeafletMap extends LitElement {
 
       // Add the control to the map (empty object for overlays as none are defined here)
       control.layers(baseLayers, {}).addTo(LeafletMap.map);
+
+      LeafletMap.map.on("zoomend", () => this.updateLabelVisibility());
+      this.updateLabelVisibility();
     }
+  }
+
+  private updateLabelVisibility() {
+    const mapEl = this.shadowRoot?.querySelector("#mapid") as HTMLElement;
+    if (!mapEl || !LeafletMap.map) return;
+    const show = LeafletMap.map.getZoom() >= LeafletMap.LABEL_MIN_ZOOM;
+    mapEl.classList.toggle("labels-hidden", !show);
   }
 
   render() {
@@ -224,6 +256,16 @@ export class LeafletMap extends LitElement {
     const markers: Marker[] = points.map((p) => {
       const m = marker([p.latitude, p.longitude]);
       m.bindPopup(this.buildPointPopup(p, m, typeNameByUuid));
+      const typeLabel = typeNameByUuid.get(p.type) ?? "";
+      const labelText = typeLabel
+        ? `${p.name || "(unnamed)"} (${typeLabel})`
+        : p.name || "(unnamed)";
+      m.bindTooltip(labelText, {
+        permanent: true,
+        direction: "right",
+        offset: [10, -20],
+        className: "point-label",
+      });
       this.markersByUuid.set(p.uuid, m);
       return m;
     });
@@ -244,6 +286,7 @@ export class LeafletMap extends LitElement {
     }) as MarkerClusterGroup;
     this.pointsLayer.addLayers(markers);
     this.pointsLayer.addTo(LeafletMap.map);
+    this.updateLabelVisibility();
 
     if (fitBounds && markers.length > 0) {
       const bounds: [number, number][] = markers.map((m) => {
