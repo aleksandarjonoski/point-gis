@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	"mime/multipart"
 	"net/http"
 	"strings"
 
@@ -199,6 +201,119 @@ func updatePoint(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"status": "success"})
+}
+
+func getComments(c *gin.Context) {
+	pointUUID := strings.TrimSpace(c.Param("uuid"))
+	if pointUUID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "missing point uuid"})
+		return
+	}
+
+	comments, err := queryCommentsByPoint(pointUUID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, comments)
+}
+
+func createComment(c *gin.Context) {
+	pointUUID := strings.TrimSpace(c.Param("uuid"))
+	if pointUUID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "missing point uuid"})
+		return
+	}
+
+	// Cap the whole request body as a safety net against oversized uploads.
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxCommentUploadBytes)
+
+	text := strings.TrimSpace(c.PostForm("commentText"))
+
+	var files []*multipart.FileHeader
+	if form, err := c.MultipartForm(); err == nil {
+		files = form.File["images"]
+	}
+
+	if text == "" && len(files) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "comment text or at least one image is required"})
+		return
+	}
+
+	if len(files) > maxImagesPerComment {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": fmt.Sprintf("too many images (max %d)", maxImagesPerComment),
+		})
+		return
+	}
+	for _, file := range files {
+		if file.Size > maxImageSize {
+			c.JSON(http.StatusRequestEntityTooLarge, gin.H{
+				"error": fmt.Sprintf("image %q exceeds the %d MB limit", file.Filename, maxImageSize>>20),
+			})
+			return
+		}
+	}
+
+	// Save files to disk first; collect metadata for the DB rows.
+	images := make([]CommentImage, 0, len(files))
+	savedFilenames := make([]string, 0, len(files))
+	for _, file := range files {
+		filename, err := saveCommentImage(c, file)
+		if err != nil {
+			removeCommentImageFiles(savedFilenames)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		if filename == "" {
+			continue // unsupported file type, skip
+		}
+		savedFilenames = append(savedFilenames, filename)
+		images = append(images, CommentImage{
+			Filename:    filename,
+			ContentType: file.Header.Get("Content-Type"),
+		})
+	}
+
+	tx, err := DB.Begin()
+	if err != nil {
+		removeCommentImageFiles(savedFilenames)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	commentUUID, created, err := insertComment(tx, pointUUID, text)
+	if err != nil {
+		tx.Rollback()
+		removeCommentImageFiles(savedFilenames)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	for i := range images {
+		images[i].CommentUUID = commentUUID
+		if err := insertCommentImage(tx, commentUUID, images[i].Filename, images[i].ContentType); err != nil {
+			tx.Rollback()
+			removeCommentImageFiles(savedFilenames)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		removeCommentImageFiles(savedFilenames)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, Comment{
+		UUID:        commentUUID,
+		PointUUID:   pointUUID,
+		CommentText: text,
+		Created:     &created,
+		Images:      images,
+	})
 }
 
 func deletePoint(c *gin.Context) {

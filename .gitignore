@@ -3,3 +3,6 @@
 
 # Go
 /server/server
+
+# Uploaded files
+/server/uploads

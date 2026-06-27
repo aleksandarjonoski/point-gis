@@ -1,6 +1,7 @@
 import { LitElement, html, css, PropertyValues } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
-import type { PointType } from "../services/api";
+import { fetchComments, addComment, commentImageUrl } from "../services/api";
+import type { PointType, Comment } from "../services/api";
 
 export interface AddPointSubmitDetail {
   name: string;
@@ -20,12 +21,19 @@ export class AddPointDialog extends LitElement {
   @property({ type: String }) initialName = "";
   @property({ type: String }) initialType = "";
   @property({ type: String }) initialDescription = "";
+  @property({ type: String }) pointUuid = "";
   @property({ type: Array }) pointTypes: PointType[] = [];
 
   @state() private name = "";
   @state() private type = "";
   @state() private description = "";
   @state() private saving = false;
+
+  @state() private comments: Comment[] = [];
+  @state() private commentsLoading = false;
+  @state() private newComment = "";
+  @state() private selectedFiles: File[] = [];
+  @state() private postingComment = false;
 
   static styles = css`
     :host {
@@ -195,6 +203,92 @@ export class AddPointDialog extends LitElement {
       background: #93b4ef;
       cursor: not-allowed;
     }
+    .comments {
+      border-top: 1px solid #e5e7eb;
+      padding-top: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .comments-title {
+      font-weight: 600;
+      font-size: 14px;
+      color: #1f2937;
+    }
+    .comment-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-height: 260px;
+      overflow-y: auto;
+    }
+    .muted {
+      color: #888;
+      font-size: 13px;
+    }
+    .comment {
+      background: #f9fafb;
+      border: 1px solid #eef0f2;
+      border-radius: 8px;
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .comment-date {
+      font-size: 11px;
+      color: #6b7280;
+    }
+    .comment-text {
+      font-size: 14px;
+      color: #1f2937;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .thumbs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .thumbs img {
+      width: 64px;
+      height: 64px;
+      object-fit: cover;
+      border-radius: 6px;
+      border: 1px solid #e5e7eb;
+      display: block;
+    }
+    .comment-form {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .comment-form-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .comment-form input[type="file"] {
+      font-size: 12px;
+      flex: 1;
+      min-width: 0;
+      padding: 6px;
+    }
+    button.add-comment {
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+      flex: none;
+    }
+    button.add-comment:disabled {
+      background: #93b4ef;
+      cursor: not-allowed;
+    }
   `;
 
   protected willUpdate(changed: PropertyValues<this>) {
@@ -202,6 +296,150 @@ export class AddPointDialog extends LitElement {
     if (changed.has("initialType")) this.type = this.initialType;
     if (changed.has("initialDescription"))
       this.description = this.initialDescription;
+    if (changed.has("pointUuid")) {
+      if (this.pointUuid && this.mode === "edit") {
+        this.loadComments();
+      } else {
+        this.comments = [];
+      }
+    }
+  }
+
+  private async loadComments() {
+    this.commentsLoading = true;
+    try {
+      this.comments = await fetchComments(this.pointUuid);
+    } catch (err) {
+      console.error("Failed to load comments:", err);
+      this.comments = [];
+    } finally {
+      this.commentsLoading = false;
+    }
+  }
+
+  // Keep these in sync with the server limits in images.go.
+  private static readonly MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10 MB
+  private static readonly MAX_IMAGES = 10;
+
+  private onFilesSelected(e: Event) {
+    const input = e.target as HTMLInputElement;
+    const files = input.files ? Array.from(input.files) : [];
+
+    const tooBig = files.filter(
+      (f) => f.size > AddPointDialog.MAX_IMAGE_SIZE
+    );
+    if (tooBig.length > 0) {
+      alert(
+        `These images exceed the 10 MB limit: ${tooBig
+          .map((f) => f.name)
+          .join(", ")}`
+      );
+    }
+
+    let accepted = files.filter((f) => f.size <= AddPointDialog.MAX_IMAGE_SIZE);
+    if (accepted.length > AddPointDialog.MAX_IMAGES) {
+      alert(`You can attach at most ${AddPointDialog.MAX_IMAGES} images.`);
+      accepted = accepted.slice(0, AddPointDialog.MAX_IMAGES);
+    }
+
+    this.selectedFiles = accepted;
+  }
+
+  private async submitComment() {
+    if (this.postingComment) return;
+    const text = this.newComment.trim();
+    if (!text && this.selectedFiles.length === 0) return;
+    this.postingComment = true;
+    try {
+      const created = await addComment(
+        this.pointUuid,
+        text,
+        this.selectedFiles
+      );
+      this.comments = [created, ...this.comments];
+      this.newComment = "";
+      this.selectedFiles = [];
+      const fileInput =
+        this.shadowRoot?.querySelector<HTMLInputElement>("input[type=file]");
+      if (fileInput) fileInput.value = "";
+    } catch (err) {
+      console.error("Failed to add comment:", err);
+      alert("Failed to add comment");
+    } finally {
+      this.postingComment = false;
+    }
+  }
+
+  private formatDate(iso: string | null): string {
+    if (!iso) return "";
+    return new Date(iso).toLocaleString();
+  }
+
+  private renderComments() {
+    const canPost =
+      !this.postingComment &&
+      (this.newComment.trim().length > 0 || this.selectedFiles.length > 0);
+    return html`
+      <div class="comments">
+        <div class="comments-title">Comments</div>
+        <div class="comment-list">
+          ${this.commentsLoading
+            ? html`<div class="muted">Loading...</div>`
+            : this.comments.length === 0
+            ? html`<div class="muted">No comments yet</div>`
+            : this.comments.map(
+                (cm) => html`
+                  <div class="comment">
+                    <div class="comment-date">
+                      ${this.formatDate(cm.created)}
+                    </div>
+                    ${cm.commentText
+                      ? html`<div class="comment-text">${cm.commentText}</div>`
+                      : ""}
+                    ${cm.images.length
+                      ? html`<div class="thumbs">
+                          ${cm.images.map(
+                            (img) => html`<a
+                              href=${commentImageUrl(img.filename)}
+                              target="_blank"
+                              rel="noopener"
+                            >
+                              <img src=${commentImageUrl(img.filename)} alt="" />
+                            </a>`
+                          )}
+                        </div>`
+                      : ""}
+                  </div>
+                `
+              )}
+        </div>
+        <div class="comment-form">
+          <textarea
+            rows="2"
+            placeholder="Add a comment..."
+            .value=${this.newComment}
+            @input=${(e: InputEvent) =>
+              (this.newComment = (e.target as HTMLTextAreaElement).value)}
+          ></textarea>
+          <div class="comment-form-actions">
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              capture="environment"
+              @change=${this.onFilesSelected}
+            />
+            <button
+              class="add-comment"
+              ?disabled=${!canPost}
+              @click=${this.submitComment}
+            >
+              ${this.postingComment ? "Adding..." : "Add comment"}
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
   }
 
   private currentDetail(): AddPointSubmitDetail {
@@ -318,6 +556,9 @@ export class AddPointDialog extends LitElement {
           <button class="edit-pos" @click=${this.editPosition}>
             Edit position
           </button>
+          ${this.mode === "edit" && this.pointUuid
+            ? this.renderComments()
+            : ""}
         </div>
         <footer>
           <button class="cancel" @click=${this.cancel}>Cancel</button>

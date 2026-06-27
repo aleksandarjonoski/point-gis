@@ -672,6 +672,7 @@ export class MapApp extends LitElement {
               .initialName=${this.dialogValues.name}
               .initialType=${this.dialogValues.type}
               .initialDescription=${this.dialogValues.description}
+              .pointUuid=${this.editingPoint?.uuid ?? ""}
               .pointTypes=${this.pointTypes}
               @dialog-submit=${this.onDialogSubmit}
               @dialog-cancelled=${this.onDialogCancelled}

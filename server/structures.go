@@ -46,3 +46,21 @@ type PointType struct {
 	Description string `json:"description"`
 	ProjectUUID string `json:"projectUuid"`
 }
+
+type Comment struct {
+	ID          int            `json:"id"`
+	UUID        string         `json:"uuid"`
+	PointUUID   string         `json:"pointUuid"`
+	CommentText string         `json:"commentText"`
+	Created     *time.Time     `json:"created"`
+	Images      []CommentImage `json:"images"`
+}
+
+type CommentImage struct {
+	ID          int        `json:"id"`
+	UUID        string     `json:"uuid"`
+	CommentUUID string     `json:"commentUuid"`
+	Filename    string     `json:"filename"`
+	ContentType string     `json:"contentType"`
+	Created     *time.Time `json:"created"`
+}

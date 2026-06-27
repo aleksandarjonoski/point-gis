@@ -39,14 +39,28 @@ func queryProjects(userUUID string) ([]Project, error) {
 	return projects, nil
 }
 
-// deleteProjectByUUID deletes a project together with all its points and point
-// types in a single transaction. It returns the number of project rows deleted.
+// deleteProjectByUUID deletes a project together with all its points, point
+// types, comments, and comment images in a single transaction, then removes the
+// image files from disk. It returns the number of project rows deleted.
 func deleteProjectByUUID(uuid string) (int64, error) {
+	files, err := commentImageFilenamesByProject(uuid)
+	if err != nil {
+		return 0, err
+	}
+
 	tx, err := DB.Begin()
 	if err != nil {
 		return 0, err
 	}
 
+	if err := deleteCommentImagesByProject(tx, uuid); err != nil {
+		tx.Rollback()
+		return 0, err
+	}
+	if err := deleteCommentsByProject(tx, uuid); err != nil {
+		tx.Rollback()
+		return 0, err
+	}
 	if err := deletePointsByProject(tx, uuid); err != nil {
 		tx.Rollback()
 		return 0, err
@@ -70,6 +84,8 @@ func deleteProjectByUUID(uuid string) (int64, error) {
 	if err := tx.Commit(); err != nil {
 		return 0, err
 	}
+
+	removeCommentImageFiles(files)
 	return n, nil
 }
 

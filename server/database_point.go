@@ -106,11 +106,44 @@ func deletePointsByProject(tx *sql.Tx, projectUUID string) error {
 	return err
 }
 
-// deletePointByUUID deletes a point and returns the number of rows affected.
+// deletePointByUUID deletes a point together with its comments and comment
+// images in a single transaction, then removes the image files from disk. It
+// returns the number of point rows deleted.
 func deletePointByUUID(uuid string) (int64, error) {
-	res, err := DB.Exec(`DELETE FROM point WHERE uuid = $1`, uuid)
+	files, err := commentImageFilenamesByPoint(uuid)
 	if err != nil {
 		return 0, err
 	}
-	return res.RowsAffected()
+
+	tx, err := DB.Begin()
+	if err != nil {
+		return 0, err
+	}
+
+	if err := deleteCommentImagesByPoint(tx, uuid); err != nil {
+		tx.Rollback()
+		return 0, err
+	}
+	if err := deleteCommentsByPoint(tx, uuid); err != nil {
+		tx.Rollback()
+		return 0, err
+	}
+
+	res, err := tx.Exec(`DELETE FROM point WHERE uuid = $1`, uuid)
+	if err != nil {
+		tx.Rollback()
+		return 0, err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		tx.Rollback()
+		return 0, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
+
+	removeCommentImageFiles(files)
+	return n, nil
 }

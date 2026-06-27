@@ -30,3 +30,20 @@ CREATE TABLE IF NOT EXISTS point (
     latitude DOUBLE PRECISION,
     longitude DOUBLE PRECISION
 );
+
+CREATE TABLE IF NOT EXISTS comment (
+    id SERIAL PRIMARY KEY,
+    uuid UUID NOT NULL DEFAULT gen_random_uuid() UNIQUE,
+    point_uuid UUID NOT NULL REFERENCES point(uuid),
+    comment_text TEXT,
+    created TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS comment_image (
+    id SERIAL PRIMARY KEY,
+    uuid UUID NOT NULL DEFAULT gen_random_uuid() UNIQUE,
+    comment_uuid UUID NOT NULL REFERENCES comment(uuid),
+    filename TEXT NOT NULL,
+    content_type TEXT,
+    created TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

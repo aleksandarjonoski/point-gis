@@ -37,7 +37,30 @@ export interface NewPoint {
   projectUuid: string;
 }
 
+export interface CommentImage {
+  id: number;
+  uuid: string;
+  commentUuid: string;
+  filename: string;
+  contentType: string;
+  created: string | null;
+}
+
+export interface Comment {
+  id: number;
+  uuid: string;
+  pointUuid: string;
+  commentText: string;
+  created: string | null;
+  images: CommentImage[];
+}
+
 const API_BASE = "/api";
+
+// commentImageUrl builds the URL for a stored comment image filename.
+export function commentImageUrl(filename: string): string {
+  return `${API_BASE}/comment-images/${encodeURIComponent(filename)}`;
+}
 
 export async function fetchProjects(userUuid?: string): Promise<Project[]> {
   const url = userUuid
@@ -125,6 +148,32 @@ export async function deletePoint(uuid: string): Promise<void> {
     method: "DELETE",
   });
   if (!res.ok) throw new Error(`deletePoint failed: ${res.status}`);
+}
+
+export async function fetchComments(pointUuid: string): Promise<Comment[]> {
+  const res = await fetch(
+    `${API_BASE}/points/${encodeURIComponent(pointUuid)}/comments`
+  );
+  if (!res.ok) throw new Error(`fetchComments failed: ${res.status}`);
+  return res.json();
+}
+
+export async function addComment(
+  pointUuid: string,
+  commentText: string,
+  images: File[]
+): Promise<Comment> {
+  const form = new FormData();
+  form.append("commentText", commentText);
+  for (const file of images) {
+    form.append("images", file);
+  }
+  const res = await fetch(
+    `${API_BASE}/points/${encodeURIComponent(pointUuid)}/comments`,
+    { method: "POST", body: form }
+  );
+  if (!res.ok) throw new Error(`addComment failed: ${res.status}`);
+  return res.json();
 }
 
 export async function fetchPointTypes(
