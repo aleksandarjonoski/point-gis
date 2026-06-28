@@ -25,5 +25,6 @@ func runHttp() {
 	router.DELETE("/projects/:uuid", deleteProject)
 	router.GET("/point-types", getPointTypes)
 	router.POST("/point-types", createPointType)
+	router.PUT("/point-types/:uuid", updatePointType)
 	router.Run("localhost:8080")
 }

@@ -1,5 +1,8 @@
 import { LitElement, html, css } from "lit";
 import { customElement, property } from "lit/decorators.js";
+import { unsafeSVG } from "lit/directives/unsafe-svg.js";
+import { mdiPencilOutline } from "@mdi/js";
+import { pinInnerSvg } from "../services/point-type-icons";
 import type { PointType } from "../services/api";
 
 @customElement("point-type-picker")
@@ -68,12 +71,54 @@ export class PointTypePicker extends LitElement {
     li.selected {
       background: #eef5ff;
     }
+    .name-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .type-preview {
+      flex-shrink: 0;
+      width: 24px;
+      height: 24px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .type-preview svg {
+      width: 22px;
+      height: 22px;
+      display: block;
+      filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.25));
+    }
     .name {
       font-weight: 600;
+      flex: 1;
+    }
+    button.edit {
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      padding: 4px;
+      margin: -4px;
+      border-radius: 6px;
+      color: #9ca3af;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    button.edit:hover {
+      background: #e7f0ff;
+      color: #2563eb;
+    }
+    button.edit svg {
+      width: 20px;
+      height: 20px;
     }
     .desc {
       font-size: 12px;
       color: #666;
+      margin-left: 34px;
     }
     footer {
       display: flex;
@@ -99,6 +144,17 @@ export class PointTypePicker extends LitElement {
   private select(t: PointType) {
     this.dispatchEvent(
       new CustomEvent<PointType>("point-type-selected", {
+        detail: t,
+        bubbles: true,
+        composed: true,
+      })
+    );
+  }
+
+  private requestEdit(e: Event, t: PointType) {
+    e.stopPropagation();
+    this.dispatchEvent(
+      new CustomEvent<PointType>("point-type-edit-requested", {
         detail: t,
         bubbles: true,
         composed: true,
@@ -140,7 +196,24 @@ export class PointTypePicker extends LitElement {
                       class=${t.uuid === this.selectedUuid ? "selected" : ""}
                       @click=${() => this.select(t)}
                     >
-                      <span class="name">${t.name}</span>
+                      <div class="name-row">
+                        <span class="type-preview">
+                          <svg viewBox="0 0 24 24">
+                            ${unsafeSVG(pinInnerSvg(t.icon, t.color))}
+                          </svg>
+                        </span>
+                        <span class="name">${t.name}</span>
+                        <button
+                          class="edit"
+                          aria-label="Edit point type"
+                          title="Edit point type"
+                          @click=${(e: Event) => this.requestEdit(e, t)}
+                        >
+                          <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d=${mdiPencilOutline} />
+                          </svg>
+                        </button>
+                      </div>
                       ${t.description
                         ? html`<span class="desc">${t.description}</span>`
                         : ""}

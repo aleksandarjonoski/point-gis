@@ -52,11 +52,11 @@ func SeedSampleData() {
 	}
 
 	defaultTypes := []struct {
-		name, description string
+		name, description, icon, color string
 	}{
-		{"deciduous tree", "Tree that sheds its leaves seasonally"},
-		{"evergreen tree", "Tree that keeps its leaves year-round"},
-		{"fruit tree", "Tree cultivated for its edible fruit"},
+		{"deciduous tree", "Tree that sheds its leaves seasonally", "tree", "#16a34a"},
+		{"evergreen tree", "Tree that keeps its leaves year-round", "tree", "#0891b2"},
+		{"fruit tree", "Tree cultivated for its edible fruit", "tree", "#f59e0b"},
 	}
 	typeUUIDs := make(map[string]string, len(defaultTypes))
 	for _, t := range defaultTypes {
@@ -67,9 +67,9 @@ func SeedSampleData() {
 		).Scan(&typeUUID)
 		if errors.Is(err, sql.ErrNoRows) {
 			err = tx.QueryRow(
-				`INSERT INTO point_type (name, description, project_uuid)
-				 VALUES ($1, $2, $3) RETURNING uuid`,
-				t.name, t.description, projectUUID,
+				`INSERT INTO point_type (name, description, icon, color, project_uuid)
+				 VALUES ($1, $2, $3, $4, $5) RETURNING uuid`,
+				t.name, t.description, t.icon, t.color, projectUUID,
 			).Scan(&typeUUID)
 			if err != nil {
 				log.Fatalf("Seed: insert point_type %q: %v", t.name, err)

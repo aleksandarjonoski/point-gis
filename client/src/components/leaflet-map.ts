@@ -1,9 +1,14 @@
 import { LitElement, html, css, PropertyValues } from "lit";
 import { customElement, state } from "lit/decorators.js";
+import { unsafeSVG } from "lit/directives/unsafe-svg.js";
 import * as L from "leaflet";
 const { map: createMap, tileLayer, control, marker } = L;
 import type { Map as LMap, MarkerClusterGroup, Marker } from "leaflet";
 import type { Point, PointType } from "../services/api";
+import { pinInnerSvg } from "../services/point-type-icons";
+
+// Orange pin used while editing/moving a point's position.
+const EDIT_PIN_COLOR = "#f59e0b";
 
 import "leaflet/dist/leaflet.css";
 import "leaflet.markercluster/dist/MarkerCluster.css";
@@ -23,8 +28,8 @@ export class LeafletMap extends LitElement {
           position: absolute;
           left: 50%;
           top: 50%;
-          width: 38px;
-          height: 52px;
+          width: 56px;
+          height: 51px;
           pointer-events: none;
           z-index: 1000;
           filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.4));
@@ -44,14 +49,6 @@ export class LeafletMap extends LitElement {
           width: 100%;
           height: 100%;
           display: block;
-        }
-        .center-pin-overlay svg path {
-          fill: #f59e0b;
-          stroke: #fff;
-          stroke-width: 2;
-        }
-        .center-pin-overlay svg circle {
-          fill: #fff;
         }
         .cluster-bubble-icon {
           background: transparent !important;
@@ -87,24 +84,10 @@ export class LeafletMap extends LitElement {
           border: none !important;
         }
         .edit-pin {
-          width: 38px;
-          height: 52px;
+          display: block;
           filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.4));
           transform-origin: 50% 100%;
           animation: editPinPulse 1.4s ease-in-out infinite;
-        }
-        .edit-pin svg {
-          width: 100%;
-          height: 100%;
-          display: block;
-        }
-        .edit-pin svg path {
-          fill: #f59e0b;
-          stroke: #fff;
-          stroke-width: 2;
-        }
-        .edit-pin svg circle {
-          fill: #fff;
         }
         @keyframes editPinPulse {
           0%,
@@ -114,6 +97,15 @@ export class LeafletMap extends LitElement {
           50% {
             transform: scale(1.1);
           }
+        }
+
+        .type-pin-icon {
+          background: transparent !important;
+          border: none !important;
+        }
+        .type-pin {
+          display: block;
+          filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
         }
 
         .point-label {
@@ -211,11 +203,8 @@ export class LeafletMap extends LitElement {
       ${this.editMode === "center"
         ? html`
             <div class="center-pin-overlay">
-              <svg viewBox="0 0 38 52" xmlns="http://www.w3.org/2000/svg">
-                <path
-                  d="M19 0 C8.5 0 0 8.5 0 19 C0 33 19 52 19 52 C19 52 38 33 38 19 C38 8.5 29.5 0 19 0 Z"
-                />
-                <circle cx="19" cy="19" r="6" />
+              <svg viewBox="0 0 24 22" xmlns="http://www.w3.org/2000/svg">
+                ${unsafeSVG(pinInnerSvg("marker", EDIT_PIN_COLOR))}
               </svg>
             </div>
           `
@@ -246,6 +235,8 @@ export class LeafletMap extends LitElement {
     if (!LeafletMap.map) return;
     const { fitBounds = false, pointTypes = [] } = options;
     const typeNameByUuid = new Map(pointTypes.map((t) => [t.uuid, t.name]));
+    const typeIconByUuid = new Map(pointTypes.map((t) => [t.uuid, t.icon]));
+    const typeColorByUuid = new Map(pointTypes.map((t) => [t.uuid, t.color]));
 
     if (this.pointsLayer) {
       LeafletMap.map.removeLayer(this.pointsLayer);
@@ -254,7 +245,12 @@ export class LeafletMap extends LitElement {
     this.hiddenMarker = null;
 
     const markers: Marker[] = points.map((p) => {
-      const m = marker([p.latitude, p.longitude]);
+      const m = marker([p.latitude, p.longitude], {
+        icon: this.buildTypeIcon(
+          typeIconByUuid.get(p.type) ?? "",
+          typeColorByUuid.get(p.type) ?? ""
+        ),
+      });
       m.bindPopup(this.buildPointPopup(p, m, typeNameByUuid));
       const typeLabel = typeNameByUuid.get(p.type) ?? "";
       const labelText = typeLabel
@@ -263,7 +259,7 @@ export class LeafletMap extends LitElement {
       m.bindTooltip(labelText, {
         permanent: true,
         direction: "right",
-        offset: [10, -20],
+        offset: [16, -26],
         className: "point-label",
       });
       this.markersByUuid.set(p.uuid, m);
@@ -295,6 +291,18 @@ export class LeafletMap extends LitElement {
       });
       LeafletMap.map.fitBounds(bounds, { maxZoom: 16, padding: [40, 40] });
     }
+  }
+
+  private buildTypeIcon(iconKey: string, colorKey: string) {
+    const inner = pinInnerSvg(iconKey, colorKey);
+
+    return L.divIcon({
+      html: `<svg class="type-pin" viewBox="0 0 24 24" width="48" height="48">${inner}</svg>`,
+      className: "type-pin-icon",
+      iconSize: [48, 48],
+      iconAnchor: [24, 44],
+      popupAnchor: [0, -40],
+    });
   }
 
   private buildPointPopup(
@@ -394,17 +402,13 @@ export class LeafletMap extends LitElement {
 
     if (this.editMode === "drag") {
       const editIcon = L.divIcon({
-        html: `
-          <div class="edit-pin">
-            <svg viewBox="0 0 38 52" xmlns="http://www.w3.org/2000/svg">
-              <path d="M19 0 C8.5 0 0 8.5 0 19 C0 33 19 52 19 52 C19 52 38 33 38 19 C38 8.5 29.5 0 19 0 Z" />
-              <circle cx="19" cy="19" r="6" />
-            </svg>
-          </div>
-        `,
+        html: `<svg class="edit-pin" viewBox="0 0 24 22" width="56" height="51">${pinInnerSvg(
+          "marker",
+          EDIT_PIN_COLOR
+        )}</svg>`,
         className: "edit-pin-icon",
-        iconSize: [38, 52],
-        iconAnchor: [19, 52],
+        iconSize: [56, 51],
+        iconAnchor: [28, 51],
       });
       this.editMarker = marker([lat, lng], { draggable: true, icon: editIcon });
       this.editMarker.addTo(LeafletMap.map);

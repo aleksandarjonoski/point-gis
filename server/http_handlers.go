@@ -166,6 +166,35 @@ func createPointType(c *gin.Context) {
 	c.JSON(http.StatusCreated, pt)
 }
 
+func updatePointType(c *gin.Context) {
+	uuid := strings.TrimSpace(c.Param("uuid"))
+	if uuid == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "missing uuid"})
+		return
+	}
+
+	var pt PointType
+	if err := c.ShouldBindJSON(&pt); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if strings.TrimSpace(pt.Name) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "name is required"})
+		return
+	}
+
+	n, err := updatePointTypeByUUID(uuid, pt)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if n == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "point type not found"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "success"})
+}
+
 func getPoints(c *gin.Context) {
 	projectUUID := strings.TrimSpace(c.Query("projectUuid"))
 

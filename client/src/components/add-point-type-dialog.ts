@@ -1,16 +1,46 @@
-import { LitElement, html, css } from "lit";
-import { customElement, state } from "lit/decorators.js";
+import { LitElement, html, css, PropertyValues } from "lit";
+import { customElement, property, state } from "lit/decorators.js";
+import { unsafeSVG } from "lit/directives/unsafe-svg.js";
+import {
+  POINT_TYPE_ICONS,
+  DEFAULT_POINT_TYPE_ICON,
+  POINT_TYPE_COLORS,
+  DEFAULT_PIN_COLOR,
+  pinInnerSvg,
+} from "../services/point-type-icons";
 
 export interface AddPointTypeSubmitDetail {
   name: string;
   description: string;
+  icon: string;
+  color: string;
 }
+
+export type PointTypeDialogMode = "create" | "edit";
 
 @customElement("add-point-type-dialog")
 export class AddPointTypeDialog extends LitElement {
+  @property({ type: String }) mode: PointTypeDialogMode = "create";
+  @property({ type: String }) initialName = "";
+  @property({ type: String }) initialDescription = "";
+  @property({ type: String }) initialIcon = DEFAULT_POINT_TYPE_ICON;
+  @property({ type: String }) initialColor = DEFAULT_PIN_COLOR;
+
   @state() private name = "";
   @state() private description = "";
+  @state() private icon = DEFAULT_POINT_TYPE_ICON;
+  @state() private color = DEFAULT_PIN_COLOR;
   @state() private saving = false;
+
+  protected willUpdate(changed: PropertyValues<this>) {
+    if (changed.has("initialName")) this.name = this.initialName;
+    if (changed.has("initialDescription"))
+      this.description = this.initialDescription;
+    if (changed.has("initialIcon"))
+      this.icon = this.initialIcon || DEFAULT_POINT_TYPE_ICON;
+    if (changed.has("initialColor"))
+      this.color = this.initialColor || DEFAULT_PIN_COLOR;
+  }
 
   static styles = css`
     :host {
@@ -107,6 +137,72 @@ export class AddPointTypeDialog extends LitElement {
       background: #93b4ef;
       cursor: not-allowed;
     }
+    .icon-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+      gap: 10px;
+    }
+    button.icon-choice {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 10px 4px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      background: #fff;
+      cursor: pointer;
+      color: #1f2937;
+      font-size: 11px;
+    }
+    button.icon-choice:hover {
+      border-color: #93b4ef;
+    }
+    button.icon-choice.selected {
+      border-color: #2563eb;
+      background: #eff5ff;
+      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+    }
+    button.icon-choice svg {
+      width: 28px;
+      height: 28px;
+    }
+    .color-row {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    button.color-choice {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      border: 2px solid #fff;
+      box-shadow: 0 0 0 1px #ccc;
+      cursor: pointer;
+      padding: 0;
+    }
+    button.color-choice.selected {
+      box-shadow: 0 0 0 2px #1f2937;
+    }
+    input[type="color"].custom-color {
+      width: 38px;
+      height: 32px;
+      padding: 2px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      background: #fff;
+      cursor: pointer;
+    }
+    .pin-preview {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px;
+    }
+    .pin-preview svg {
+      filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
+    }
   `;
 
   private cancel() {
@@ -123,6 +219,8 @@ export class AddPointTypeDialog extends LitElement {
         detail: {
           name: this.name.trim(),
           description: this.description.trim(),
+          icon: this.icon,
+          color: this.color,
         },
         bubbles: true,
         composed: true,
@@ -131,13 +229,19 @@ export class AddPointTypeDialog extends LitElement {
   }
 
   render() {
+    const title = this.mode === "edit" ? "Edit point type" : "Add point type";
     return html`
       <div class="panel">
         <header>
-          <span>Add point type</span>
+          <span>${title}</span>
           <button class="close" @click=${this.cancel}>×</button>
         </header>
         <div class="body">
+          <div class="pin-preview">
+            <svg viewBox="0 0 24 24" width="52" height="52">
+              ${unsafeSVG(pinInnerSvg(this.icon, this.color))}
+            </svg>
+          </div>
           <label>
             Name
             <input
@@ -157,6 +261,56 @@ export class AddPointTypeDialog extends LitElement {
                 (this.description = (e.target as HTMLTextAreaElement).value)}
               placeholder="Optional description"
             ></textarea>
+          </label>
+          <label>
+            Map icon
+            <div class="icon-grid">
+              ${POINT_TYPE_ICONS.map(
+                (ic) => html`
+                  <button
+                    type="button"
+                    class="icon-choice ${this.icon === ic.key
+                      ? "selected"
+                      : ""}"
+                    title=${ic.label}
+                    @click=${() => (this.icon = ic.key)}
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                      style="color: darkgrey"
+                    >
+                      <path d=${ic.path} />
+                    </svg>
+                    ${ic.label}
+                  </button>
+                `
+              )}
+            </div>
+          </label>
+          <label>
+            Pin color
+            <div class="color-row">
+              ${POINT_TYPE_COLORS.map(
+                (c) => html`
+                  <button
+                    type="button"
+                    class="color-choice ${this.color === c ? "selected" : ""}"
+                    style="background:${c}"
+                    title=${c}
+                    @click=${() => (this.color = c)}
+                  ></button>
+                `
+              )}
+              <input
+                type="color"
+                class="custom-color"
+                title="Custom color"
+                .value=${this.color}
+                @input=${(e: InputEvent) =>
+                  (this.color = (e.target as HTMLInputElement).value)}
+              />
+            </div>
           </label>
         </div>
         <footer>

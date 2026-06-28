@@ -24,6 +24,7 @@ import {
   deleteProject,
   fetchPointTypes,
   createPointType,
+  updatePointType,
   Project,
   Point,
   PointType,
@@ -240,6 +241,7 @@ export class MapApp extends LitElement {
 
   @state() private pointTypes: PointType[] = [];
   @state() private addPointTypeOpen = false;
+  @state() private editingPointType: PointType | null = null;
   @state() private pointTypePickerOpen = false;
 
   @state() private dialogMode: DialogMode | null = null;
@@ -387,26 +389,48 @@ export class MapApp extends LitElement {
   }
 
   private onAddPointTypeRequested() {
+    this.editingPointType = null;
+    this.addPointTypeOpen = true;
+  }
+
+  private onPointTypeEditRequested(e: CustomEvent<PointType>) {
+    this.editingPointType = e.detail;
     this.addPointTypeOpen = true;
   }
 
   private onAddPointTypeCancelled() {
     this.addPointTypeOpen = false;
+    this.editingPointType = null;
   }
 
   private async onAddPointTypeSubmit(e: CustomEvent<AddPointTypeSubmitDetail>) {
     if (!this.currentProject) return;
+    const editing = this.editingPointType;
     try {
-      await createPointType({
-        name: e.detail.name,
-        description: e.detail.description,
-        projectUuid: this.currentProject.uuid,
-      });
+      if (editing) {
+        await updatePointType(editing.uuid, {
+          name: e.detail.name,
+          description: e.detail.description,
+          icon: e.detail.icon,
+          color: e.detail.color,
+        });
+      } else {
+        await createPointType({
+          name: e.detail.name,
+          description: e.detail.description,
+          icon: e.detail.icon,
+          color: e.detail.color,
+          projectUuid: this.currentProject.uuid,
+        });
+      }
       await this.refreshPointTypes();
+      // Re-render points so markers reflect any icon/color change.
+      await this.refreshPoints();
       this.addPointTypeOpen = false;
+      this.editingPointType = null;
     } catch (err) {
-      console.error("Failed to create point type:", err);
-      alert("Failed to create point type");
+      console.error("Failed to save point type:", err);
+      alert("Failed to save point type");
     }
   }
 
@@ -687,6 +711,7 @@ export class MapApp extends LitElement {
               .pointTypes=${this.pointTypes}
               .selectedUuid=${this.dialogValues?.type ?? ""}
               @point-type-selected=${this.onPointTypeSelected}
+              @point-type-edit-requested=${this.onPointTypeEditRequested}
               @picker-closed=${this.onPointTypePickerClosed}
               @add-point-type-requested=${this.onAddPointTypeRequested}
             ></point-type-picker>
@@ -695,6 +720,11 @@ export class MapApp extends LitElement {
       ${this.addPointTypeOpen
         ? html`
             <add-point-type-dialog
+              .mode=${this.editingPointType ? "edit" : "create"}
+              .initialName=${this.editingPointType?.name ?? ""}
+              .initialDescription=${this.editingPointType?.description ?? ""}
+              .initialIcon=${this.editingPointType?.icon ?? ""}
+              .initialColor=${this.editingPointType?.color ?? ""}
               @dialog-submit=${this.onAddPointTypeSubmit}
               @dialog-cancelled=${this.onAddPointTypeCancelled}
             ></add-point-type-dialog>

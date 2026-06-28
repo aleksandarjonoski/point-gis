@@ -44,6 +44,8 @@ type PointType struct {
 	UUID        string `json:"uuid"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
+	Icon        string `json:"icon"`
+	Color       string `json:"color"`
 	ProjectUUID string `json:"projectUuid"`
 }
 

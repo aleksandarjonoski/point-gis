@@ -18,6 +18,8 @@ CREATE TABLE IF NOT EXISTS point_type (
     uuid UUID NOT NULL DEFAULT gen_random_uuid() UNIQUE,
     name TEXT,
     description TEXT,
+    icon TEXT,
+    color TEXT,
     project_uuid UUID NOT NULL REFERENCES project(uuid)
 );
 

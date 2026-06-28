@@ -12,6 +12,8 @@ export interface PointType {
   uuid: string;
   name: string;
   description: string;
+  icon: string;
+  color: string;
   projectUuid: string;
 }
 
@@ -189,6 +191,8 @@ export async function fetchPointTypes(
 export interface NewPointType {
   name: string;
   description: string;
+  icon: string;
+  color: string;
   projectUuid: string;
 }
 
@@ -200,4 +204,26 @@ export async function createPointType(body: NewPointType): Promise<PointType> {
   });
   if (!res.ok) throw new Error(`createPointType failed: ${res.status}`);
   return res.json();
+}
+
+export interface UpdatePointTypeBody {
+  name: string;
+  description: string;
+  icon: string;
+  color: string;
+}
+
+export async function updatePointType(
+  uuid: string,
+  body: UpdatePointTypeBody
+): Promise<void> {
+  const res = await fetch(
+    `${API_BASE}/point-types/${encodeURIComponent(uuid)}`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }
+  );
+  if (!res.ok) throw new Error(`updatePointType failed: ${res.status}`);
 }
